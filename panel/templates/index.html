@@ -93,24 +93,26 @@
                 
                 <!-- Tab 1: Dashboard -->
                 <section id="tab-dashboard" class="tab-section active">
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
                         <!-- CPU Radar -->
                         <div class="flex flex-col items-center justify-center">
                             <div id="radar-cpu" class="relative w-32 h-32 flex items-center justify-center">
                                 <span class="absolute font-mono text-xl font-bold text-zinc-100" id="cpu-val-radar">--%</span>
                             </div>
-                            <div class="mt-3 flex items-center gap-2 text-xs uppercase tracking-widest text-zinc-500">
+                            <div class="radar-sub-value" id="cpu-sub-val"></div>
+                            <div class="mt-2 flex items-center gap-2 text-xs uppercase tracking-[0.08em] text-[#6B7280] font-medium">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M9 4v-2m6 2v-2m-6 18v2m6-2v2m-8-6h-2m18 0h-2m-14-6h-2m18 0h-2"/></svg>
                                 <span>CPU</span>
                             </div>
                         </div>
-                        
+
                         <!-- RAM Radar -->
                         <div class="flex flex-col items-center justify-center">
                             <div id="radar-ram" class="relative w-32 h-32 flex items-center justify-center">
                                 <span class="absolute font-mono text-xl font-bold text-zinc-100" id="ram-val-radar">--%</span>
                             </div>
-                            <div class="mt-3 flex items-center gap-2 text-xs uppercase tracking-widest text-zinc-500">
+                            <div class="radar-sub-value" id="ram-sub-val"></div>
+                            <div class="mt-2 flex items-center gap-2 text-xs uppercase tracking-[0.08em] text-[#6B7280] font-medium">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M6 6v-2m4 2v-2m4 2v-2m4 2v-2M6 18v2m4-2v2m4-2v2m4-2v2"/></svg>
                                 <span>RAM</span>
                             </div>
@@ -121,7 +123,8 @@
                             <div id="radar-swap" class="relative w-32 h-32 flex items-center justify-center">
                                 <span class="absolute font-mono text-xl font-bold text-zinc-100" id="swap-val-radar">--%</span>
                             </div>
-                            <div class="mt-3 flex items-center gap-2 text-xs uppercase tracking-widest text-zinc-500">
+                            <div class="radar-sub-value" id="swap-sub-val"></div>
+                            <div class="mt-2 flex items-center gap-2 text-xs uppercase tracking-[0.08em] text-[#6B7280] font-medium">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
                                 <span>SWAP</span>
                             </div>
@@ -132,7 +135,8 @@
                             <div id="radar-disk" class="relative w-32 h-32 flex items-center justify-center">
                                 <span class="absolute font-mono text-xl font-bold text-zinc-100" id="disk-val-radar">--%</span>
                             </div>
-                            <div class="mt-3 flex items-center gap-2 text-xs uppercase tracking-widest text-zinc-500">
+                            <div class="radar-sub-value" id="disk-sub-val"></div>
+                            <div class="mt-2 flex items-center gap-2 text-xs uppercase tracking-[0.08em] text-[#6B7280] font-medium">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3" stroke-width="2"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" stroke-width="2"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" stroke-width="2"/></svg>
                                 <span>DISK</span>
                             </div>
@@ -140,68 +144,98 @@
                     </div>
 
                     <!-- Uptime and Network Bar -->
-                    <div class="flex flex-wrap items-center justify-between py-4 mb-6 border-b border-zinc-900 bg-transparent">
+                    <div class="flex flex-wrap items-center justify-between py-4 px-5 mb-10 border border-zinc-800 bg-transparent rounded-xl" style="border-color: var(--card-border);">
                         <div class="flex items-center gap-4">
-                            <span class="text-xs uppercase tracking-widest text-zinc-500">⏱️ Время работы</span>
+                            <span class="text-xs uppercase tracking-[0.08em] text-[#6B7280] font-medium">⏱️ Время работы</span>
                             <span class="font-mono text-sm text-zinc-100" id="uptime-val">--</span>
                         </div>
                         <div class="flex items-center gap-8">
                             <div class="flex items-center gap-3">
-                                <span class="text-xs uppercase tracking-widest text-zinc-500">⚡ Скорость</span>
+                                <span class="text-xs uppercase tracking-[0.08em] text-[#6B7280] font-medium">⚡ Скорость</span>
                                 <span class="font-mono text-sm text-zinc-100" id="net-rate-val">-- MB/s</span>
                             </div>
                             <div class="flex items-center gap-3">
-                                <span class="text-xs uppercase tracking-widest text-zinc-500">📊 Трафик</span>
+                                <span class="text-xs uppercase tracking-[0.08em] text-[#6B7280] font-medium">📊 Трафик</span>
                                 <span class="font-mono text-sm text-zinc-100" id="total-traffic">--</span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="mb-6">
-                        <h2 class="text-xs uppercase tracking-widest text-zinc-500 mb-4">Протоколы подключения</h2>
+                    <div class="mb-10">
+                        <h2 class="text-xs uppercase tracking-[0.08em] text-[#6B7280] font-medium mb-4">Протоколы подключения</h2>
                         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="services-list">
                             <!-- Populated dynamically via JS -->
                         </div>
                     </div>
 
                     <!-- Subscription Manager -->
-                    <div class="mb-6">
-                        <h2 class="text-xs uppercase tracking-widest text-zinc-500 mb-4">Подключение устройств</h2>
-                        <div class="flex flex-col gap-2">
+                    <div class="mb-10">
+                        <h2 class="text-xs uppercase tracking-[0.08em] text-[#6B7280] font-medium mb-4">Подключение устройств</h2>
+                        <div class="flex flex-col gap-4">
                             <!-- Clash -->
-                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-md gap-4">
+                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-xl gap-4" style="border-color: var(--card-border);">
                                 <div>
-                                    <div class="font-semibold text-zinc-200 tracking-wide">Clash Verge / Clash Meta</div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-zinc-200 tracking-wide" style="font-size: 18px;">Clash Verge / Clash Meta</span>
+                                        <span class="format-badge">YAML</span>
+                                    </div>
                                     <div class="text-xs text-zinc-500 mt-1">Поддержка Mieru и AnyTLS протоколов напрямую.</div>
                                 </div>
                                 <div class="flex items-center gap-2 w-full sm:w-auto">
-                                    <input type="text" class="bg-[#09090b] border border-zinc-800 rounded px-3 py-1.5 text-xs font-mono text-zinc-400 w-full sm:w-64 focus:outline-none focus:border-zinc-600" value="https://{{.Domain}}:{{.Port}}/sub/clash/{{.Token}}.yaml" readonly id="link-clash">
-                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="copyLink('link-clash')">Копировать</button>
-                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="showQR('link-clash', 'Clash Подписка')">QR</button>
+                                    <input type="text" class="bg-[#09090b] border border-zinc-800 rounded px-3 py-1.5 text-xs font-mono text-zinc-400 w-full sm:w-64 focus:outline-none focus:border-zinc-600 truncate" value="https://{{.Domain}}:{{.Port}}/sub/clash/{{.Token}}.yaml" readonly id="link-clash">
+                                    <button type="button" class="copy-btn-primary" onclick="copyLink('link-clash')">Копировать</button>
+                                    <button type="button" class="qr-icon-btn" onclick="showQR('link-clash', 'Clash Подписка')" title="QR-код">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                            <rect x="3" y="3" width="7" height="7"></rect>
+                                            <rect x="14" y="3" width="7" height="7"></rect>
+                                            <rect x="14" y="14" width="7" height="7"></rect>
+                                            <rect x="3" y="14" width="7" height="7"></rect>
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                             <!-- Sing-Box -->
-                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-md gap-4">
+                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-xl gap-4" style="border-color: var(--card-border);">
                                 <div>
-                                    <div class="font-semibold text-zinc-200 tracking-wide">Sing-Box / Nekobox</div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-zinc-200 tracking-wide" style="font-size: 18px;">Sing-Box / Nekobox</span>
+                                        <span class="format-badge">JSON</span>
+                                    </div>
                                     <div class="text-xs text-zinc-500 mt-1">Полный JSON профиль для современных клиентов.</div>
                                 </div>
                                 <div class="flex items-center gap-2 w-full sm:w-auto">
-                                    <input type="text" class="bg-[#09090b] border border-zinc-800 rounded px-3 py-1.5 text-xs font-mono text-zinc-400 w-full sm:w-64 focus:outline-none focus:border-zinc-600" value="https://{{.Domain}}:{{.Port}}/sub/singbox/{{.Token}}.json" readonly id="link-singbox">
-                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="copyLink('link-singbox')">Копировать</button>
-                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="showQR('link-singbox', 'Sing-Box Подписка')">QR</button>
+                                    <input type="text" class="bg-[#09090b] border border-zinc-800 rounded px-3 py-1.5 text-xs font-mono text-zinc-400 w-full sm:w-64 focus:outline-none focus:border-zinc-600 truncate" value="https://{{.Domain}}:{{.Port}}/sub/singbox/{{.Token}}.json" readonly id="link-singbox">
+                                    <button type="button" class="copy-btn-primary" onclick="copyLink('link-singbox')">Копировать</button>
+                                    <button type="button" class="qr-icon-btn" onclick="showQR('link-singbox', 'Sing-Box Подписка')" title="QR-код">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                            <rect x="3" y="3" width="7" height="7"></rect>
+                                            <rect x="14" y="3" width="7" height="7"></rect>
+                                            <rect x="14" y="14" width="7" height="7"></rect>
+                                            <rect x="3" y="14" width="7" height="7"></rect>
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                             <!-- Universal -->
-                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-md gap-4">
+                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-xl gap-4" style="border-color: var(--card-border);">
                                 <div>
-                                    <div class="font-semibold text-zinc-200 tracking-wide">Универсальный (Happ / INCY)</div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-zinc-200 tracking-wide" style="font-size: 18px;">Универсальный (Happ / INCY)</span>
+                                        <span class="format-badge">Base64</span>
+                                    </div>
                                     <div class="text-xs text-zinc-500 mt-1">Базовый Base64 список Hysteria 2 подключений.</div>
                                 </div>
                                 <div class="flex items-center gap-2 w-full sm:w-auto">
-                                    <input type="text" class="bg-[#09090b] border border-zinc-800 rounded px-3 py-1.5 text-xs font-mono text-zinc-400 w-full sm:w-64 focus:outline-none focus:border-zinc-600" value="https://{{.Domain}}:{{.Port}}/sub/universal/{{.Token}}.txt" readonly id="link-universal">
-                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="copyLink('link-universal')">Копировать</button>
-                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="showQR('link-universal', 'Универсальная подписка')">QR</button>
+                                    <input type="text" class="bg-[#09090b] border border-zinc-800 rounded px-3 py-1.5 text-xs font-mono text-zinc-400 w-full sm:w-64 focus:outline-none focus:border-zinc-600 truncate" value="https://{{.Domain}}:{{.Port}}/sub/universal/{{.Token}}.txt" readonly id="link-universal">
+                                    <button type="button" class="copy-btn-primary" onclick="copyLink('link-universal')">Копировать</button>
+                                    <button type="button" class="qr-icon-btn" onclick="showQR('link-universal', 'Универсальная подписка')" title="QR-код">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                            <rect x="3" y="3" width="7" height="7"></rect>
+                                            <rect x="14" y="3" width="7" height="7"></rect>
+                                            <rect x="14" y="14" width="7" height="7"></rect>
+                                            <rect x="3" y="14" width="7" height="7"></rect>
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -227,7 +261,7 @@
                             </div>
                             
                             <div class="flex items-center gap-2 mb-3">
-                                <h3 id="warp-status-title" class="text-lg font-bold text-zinc-100 tracking-wide">Cloudflare WARP активен</h3>
+                                <h3 id="warp-status-title" class="text-lg font-semibold text-zinc-100 tracking-wide">Cloudflare WARP активен</h3>
                             </div>
                             
                             <div class="text-sm text-zinc-400 space-y-4 leading-relaxed max-w-lg mb-8">
@@ -457,7 +491,7 @@
                                 <div class="relative group border border-zinc-800 hover:border-zinc-600 bg-transparent rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none">
                                     <div class="flex justify-between items-start">
                                         <div>
-                                            <h4 class="font-bold text-zinc-100 tracking-wide text-sm">Hysteria 2</h4>
+                                            <h4 class="font-semibold text-zinc-100 tracking-wide" style="font-size: 18px;">Hysteria 2</h4>
                                             <span class="text-[10px] text-zinc-500 block mt-0.5">Исходящий канал для клиентов</span>
                                         </div>
                                     </div>
@@ -475,7 +509,7 @@
                                 <div class="relative group border border-zinc-800 hover:border-zinc-600 bg-transparent rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none">
                                     <div class="flex justify-between items-start">
                                         <div>
-                                            <h4 class="font-bold text-zinc-100 tracking-wide text-sm">Mieru</h4>
+                                            <h4 class="font-semibold text-zinc-100 tracking-wide" style="font-size: 18px;">Mieru</h4>
                                             <span class="text-[10px] text-zinc-500 block mt-0.5">Исходящий канал для клиентов</span>
                                         </div>
                                     </div>
@@ -493,7 +527,7 @@
                                 <div class="relative group border border-zinc-800 hover:border-zinc-600 bg-transparent rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none">
                                     <div class="flex justify-between items-start">
                                         <div>
-                                            <h4 class="font-bold text-zinc-100 tracking-wide text-sm">AnyTLS</h4>
+                                            <h4 class="font-semibold text-zinc-100 tracking-wide" style="font-size: 18px;">AnyTLS</h4>
                                             <span class="text-[10px] text-zinc-500 block mt-0.5">Исходящий канал для клиентов</span>
                                         </div>
                                     </div>
@@ -511,7 +545,7 @@
                                 <div class="relative group border border-zinc-800 hover:border-zinc-600 bg-transparent rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none">
                                     <div class="flex justify-between items-start">
                                         <div>
-                                            <h4 class="font-bold text-zinc-100 tracking-wide text-sm">NaiveProxy</h4>
+                                            <h4 class="font-semibold text-zinc-100 tracking-wide" style="font-size: 18px;">NaiveProxy</h4>
                                             <span class="text-[10px] text-zinc-500 block mt-0.5">Исходящий канал для клиентов</span>
                                         </div>
                                     </div>
@@ -984,6 +1018,20 @@
                     if (radars.swap) radars.swap.setValue(data.SwapPercent || 0); // Handle zero correctly
                     if (radars.disk) radars.disk.setValue(data.DiskPercent);
 
+                    // Update Radar Sub-values (used/total context)
+                    if (data.RAMUsedGB !== undefined && data.RAMTotalGB !== undefined) {
+                        document.getElementById('ram-sub-val').innerText = data.RAMUsedGB.toFixed(1) + ' / ' + data.RAMTotalGB.toFixed(1) + ' GB';
+                    }
+                    if (data.SwapUsedGB !== undefined && data.SwapTotalGB !== undefined) {
+                        document.getElementById('swap-sub-val').innerText = data.SwapUsedGB.toFixed(1) + ' / ' + data.SwapTotalGB.toFixed(1) + ' GB';
+                    }
+                    if (data.DiskUsedGB !== undefined && data.DiskTotalGB !== undefined) {
+                        document.getElementById('disk-sub-val').innerText = data.DiskUsedGB.toFixed(1) + ' / ' + data.DiskTotalGB.toFixed(1) + ' GB';
+                    }
+                    if (data.CPUCores !== undefined) {
+                        document.getElementById('cpu-sub-val').innerText = data.CPUCores + ' cores';
+                    }
+
                     // Update Text Values
                     document.getElementById('cpu-val-radar').innerText = data.CPU.toFixed(0) + '%';
                     document.getElementById('ram-val-radar').innerText = data.RAMPercent.toFixed(0) + '%';
@@ -1018,7 +1066,7 @@
                             svgActive.classList.remove('hidden');
                             svgInactive.classList.add('hidden');
                             statusTitle.innerText = "Cloudflare WARP активен";
-                            statusTitle.className = "text-lg font-bold text-zinc-100 tracking-wide";
+                            statusTitle.className = "text-lg font-semibold text-zinc-100 tracking-wide";
                         } else {
                             warpCard.className = "relative overflow-hidden border border-rose-900/30 bg-rose-950/[0.02] rounded-xl p-8 flex flex-col items-center text-center mb-8 transition-all duration-300 hover:border-rose-800/40";
                             warpGlow.className = "absolute -top-24 w-80 h-80 rounded-full bg-rose-500/[0.01] blur-3xl pointer-events-none";
@@ -1026,7 +1074,7 @@
                             svgActive.classList.add('hidden');
                             svgInactive.classList.remove('hidden');
                             statusTitle.innerText = "Cloudflare WARP не активен";
-                            statusTitle.className = "text-lg font-bold text-rose-400 tracking-wide";
+                            statusTitle.className = "text-lg font-semibold text-rose-400 tracking-wide";
                         }
                     }
 
@@ -1036,8 +1084,25 @@
                     for (const [key, info] of Object.entries(data.Services)) {
                         if (key === 'WARP') continue;
                         const isOffline = !info.active;
-                        const statusColor = info.active ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]';
-                        const statusText = info.active ? 'Активен' : 'Офлайн';
+                        let statusColor, statusDotClass, statusText, statusTooltip;
+                        if (info.active) {
+                            if (info.warning) {
+                                statusColor = 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]';
+                                statusDotClass = 'bg-amber-500';
+                                statusText = 'Предупреждение';
+                                statusTooltip = 'Предупреждение';
+                            } else {
+                                statusColor = 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+                                statusDotClass = 'bg-emerald-500';
+                                statusText = 'Активен';
+                                statusTooltip = 'Активен';
+                            }
+                        } else {
+                            statusColor = 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]';
+                            statusDotClass = 'bg-rose-500';
+                            statusText = 'Офлайн';
+                            statusTooltip = 'Ошибка';
+                        }
                         const bgClass = isOffline 
                             ? 'border-rose-950/80 hover:border-rose-700/60 bg-rose-950/5' 
                             : 'border-zinc-800 hover:border-zinc-600 bg-transparent';
@@ -1077,16 +1142,19 @@
                         }
 
                         html += `
-                        <div class="relative group border rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none ${bgClass}">
+                        <div class="relative group border rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none ${bgClass}" style="border-color: var(--card-border);">
                             <div class="flex justify-between items-start">
-                                <div class="font-bold text-zinc-100 tracking-wide text-sm">${key}</div>
+                                <div class="font-semibold text-zinc-100 tracking-wide" style="font-size: 18px;">${key}</div>
                                 ${actionsHTML}
                             </div>
                             <div class="flex items-center justify-between mt-auto">
                                 <div class="font-mono text-xs text-zinc-500">${portInfo}</div>
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs text-zinc-500 whitespace-nowrap">${trafficInfo || statusText}</span>
-                                    <div class="w-2.5 h-2.5 rounded-full ${statusColor}"></div>
+                                    <div class="status-dot-wrap">
+                                        <div class="w-2.5 h-2.5 rounded-full ${statusColor}"></div>
+                                        <span class="status-tooltip">${statusTooltip}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>`;
