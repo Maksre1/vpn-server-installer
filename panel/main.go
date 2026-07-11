@@ -1555,6 +1555,23 @@ func buildClashSubscription() ([]byte, error) {
 		"skip-cert-verify":   true,
 	})
 
+	naiveSNI := cfg.NaiveSNI
+	if naiveSNI == "" {
+		naiveSNI = cfg.Domain
+	}
+
+	clash.Proxies = append(clash.Proxies, map[string]interface{}{
+		"name":             "NaiveProxy",
+		"type":             "http",
+		"server":           cfg.Domain,
+		"port":             cfg.NaivePort,
+		"username":         cfg.NaiveUser,
+		"password":         cfg.NaivePassword,
+		"sni":              naiveSNI,
+		"tls":              true,
+		"skip-cert-verify": true,
+	})
+
 	clash.ProxyGroups = append(clash.ProxyGroups, map[string]interface{}{
 		"name": "PROXY",
 		"type": "select",
@@ -1562,6 +1579,7 @@ func buildClashSubscription() ([]byte, error) {
 			"Hysteria 2",
 			"Mieru",
 			"AnyTLS",
+			"NaiveProxy",
 		},
 	})
 
