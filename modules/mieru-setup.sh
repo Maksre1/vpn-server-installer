@@ -53,6 +53,10 @@ if ! id "mita" >/dev/null 2>&1; then
     useradd -r -s /usr/sbin/nologin mita || adduser --system --no-create-home --group mita || true
 fi
 
+# Create required configuration and library directories
+mkdir -p /etc/mita /var/lib/mita
+chown -R mita:mita /etc/mita /var/lib/mita || true
+
 log_info "Настройка Mieru (mita) на порту $PORT (TCP/UDP)..."
 
 # 4. Create Systemd Service
