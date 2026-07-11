@@ -57,6 +57,17 @@ echo "       VPN MULTI-PROTOCOL SERVER INSTALLER   "
 echo "============================================="
 echo -e "\033[0m"
 
+# Interactive read helper for curl | bash environments
+read_input() {
+    if [ -t 0 ]; then
+        read "$@"
+    elif [ -c /dev/tty ]; then
+        read "$@" < /dev/tty
+    else
+        read "$@"
+    fi
+}
+
 # Auto / Manual selection with 10-second timeout
 MODE=""
 echo "Выберите режим установки:"
@@ -64,7 +75,7 @@ echo "1) Auto   (Рекомендуется, автозапуск через 10 
 echo "2) Manual (Для продвинутых)"
 echo
 
-read -t 10 -p "Введите номер режима [1-2, по умолчанию Auto]: " input_mode || input_mode="1"
+read_input -t 10 -p "Введите номер режима [1-2, по умолчанию Auto]: " input_mode || input_mode="1"
 
 if [ "$input_mode" = "2" ]; then
     MODE="manual"
@@ -98,49 +109,49 @@ if [ "$MODE" = "manual" ]; then
     echo "=== Настройка домена и TLS ==="
     echo "1) Использовать бесплатный автоматический wildcard-DNS (sslip.io)"
     echo "2) Использовать собственный домен"
-    read -p "Выберите опцию [1-2, по умолчанию 1]: " domain_choice
+    read_input -p "Выберите опцию [1-2, по умолчанию 1]: " domain_choice
     if [ "$domain_choice" = "2" ]; then
-        read -p "Введите ваш домен (например, vpn.my-server.com): " DOMAIN
-        read -p "Использовать API Cloudflare для DNS-01 проверки? (y/n, по умолчанию n): " use_cf
+        read_input -p "Введите ваш домен (например, vpn.my-server.com): " DOMAIN
+        read_input -p "Использовать API Cloudflare для DNS-01 проверки? (y/n, по умолчанию n): " use_cf
         if [ "$use_cf" = "y" ] || [ "$use_cf" = "Y" ]; then
-            read -p "Введите Cloudflare API Token: " CF_TOKEN
+            read_input -p "Введите Cloudflare API Token: " CF_TOKEN
         fi
     fi
 
     # 2. Protocol selections
     echo
     echo "=== Выбор устанавливаемых протоколов и портов ==="
-    read -p "Установить Hysteria 2? (y/n, по умолчанию y): " inst_h
+    read_input -p "Установить Hysteria 2? (y/n, по умолчанию y): " inst_h
     if [ "$inst_h" != "n" ] && [ "$inst_h" != "N" ]; then
         INSTALL_HYSTERIA=true
-        read -p "Введите порт для Hysteria 2 (или оставьте пустым для случайного): " h_port
+        read_input -p "Введите порт для Hysteria 2 (или оставьте пустым для случайного): " h_port
         HYSTERIA_PORT="$h_port"
     else
         INSTALL_HYSTERIA=false
     fi
 
-    read -p "Установить Mieru? (y/n, по умолчанию y): " inst_m
+    read_input -p "Установить Mieru? (y/n, по умолчанию y): " inst_m
     if [ "$inst_m" != "n" ] && [ "$inst_m" != "N" ]; then
         INSTALL_MIERU=true
-        read -p "Введите порт для Mieru (или оставьте пустым для случайного): " m_port
+        read_input -p "Введите порт для Mieru (или оставьте пустым для случайного): " m_port
         MIERU_PORT="$m_port"
     else
         INSTALL_MIERU=false
     fi
 
-    read -p "Установить AnyTLS? (y/n, по умолчанию y): " inst_a
+    read_input -p "Установить AnyTLS? (y/n, по умолчанию y): " inst_a
     if [ "$inst_a" != "n" ] && [ "$inst_a" != "N" ]; then
         INSTALL_ANYTLS=true
-        read -p "Введите порт для AnyTLS (или оставьте пустым для случайного): " a_port
+        read_input -p "Введите порт для AnyTLS (или оставьте пустым для случайного): " a_port
         ANYTLS_PORT="$a_port"
     else
         INSTALL_ANYTLS=false
     fi
 
-    read -p "Установить NaiveProxy? (y/n, по умолчанию y): " inst_n
+    read_input -p "Установить NaiveProxy? (y/n, по умолчанию y): " inst_n
     if [ "$inst_n" != "n" ] && [ "$inst_n" != "N" ]; then
         INSTALL_NAIVE=true
-        read -p "Введите порт для NaiveProxy (или оставьте пустым для случайного): " n_port
+        read_input -p "Введите порт для NaiveProxy (или оставьте пустым для случайного): " n_port
         NAIVE_PORT="$n_port"
     else
         INSTALL_NAIVE=false
@@ -152,7 +163,7 @@ if [ "$MODE" = "manual" ]; then
     echo "1) Весь трафик VPS направлять через WARP (по умолчанию)"
     echo "2) Направлять только выбранные заблокированные домены через WARP"
     echo "3) Не использовать WARP"
-    read -p "Выберите опцию [1-3, по умолчанию 1]: " warp_choice
+    read_input -p "Выберите опцию [1-3, по умолчанию 1]: " warp_choice
     if [ "$warp_choice" = "2" ]; then
         WARP_MODE=2
     elif [ "$warp_choice" = "3" ]; then
@@ -162,7 +173,7 @@ if [ "$MODE" = "manual" ]; then
     # 4. Web panel configurations
     echo
     echo "=== Настройка веб-панели управления ==="
-    read -p "Введите порт веб-панели [по умолчанию 8080]: " custom_panel_port
+    read_input -p "Введите порт веб-панели [по умолчанию 8080]: " custom_panel_port
     if [ -n "$custom_panel_port" ]; then
         PANEL_PORT="$custom_panel_port"
     fi
@@ -170,18 +181,18 @@ if [ "$MODE" = "manual" ]; then
     # 5. SSH Hardening
     echo
     echo "=== Безопасность и SSH-хардинг ==="
-    read -p "Хотите изменить стандартный порт SSH (22)? (y/n, по умолчанию n): " change_ssh
+    read_input -p "Хотите изменить стандартный порт SSH (22)? (y/n, по умолчанию n): " change_ssh
     if [ "$change_ssh" = "y" ] || [ "$change_ssh" = "Y" ]; then
-        read -p "Введите новый порт SSH: " custom_ssh_port
+        read_input -p "Введите новый порт SSH: " custom_ssh_port
         if [ -n "$custom_ssh_port" ]; then
             SSH_PORT="$custom_ssh_port"
         fi
     fi
 
-    read -p "Хотите отключить вход по паролю по SSH (только по ключам)? (y/n, по умолчанию n): " disable_pwd
+    read_input -p "Хотите отключить вход по паролю по SSH (только по ключам)? (y/n, по умолчанию n): " disable_pwd
     if [ "$disable_pwd" = "y" ] || [ "$disable_pwd" = "Y" ]; then
         log_warn "УБЕДИТЕСЬ, ЧТО У ВАС НАСТРОЕНЫ SSH-КЛЮЧИ, ИНАЧЕ ВЫ ПОТЕРЯЕТЕ ДОСТУП К СЕРВЕРУ!"
-        read -p "Вы уверены, что хотите отключить авторизацию по паролю? (y/n, по умолчанию n): " confirm_disable
+        read_input -p "Вы уверены, что хотите отключить авторизацию по паролю? (y/n, по умолчанию n): " confirm_disable
         if [ "$confirm_disable" = "y" ] || [ "$confirm_disable" = "Y" ]; then
             DISABLE_SSH_PWD_AUTH=true
         fi
