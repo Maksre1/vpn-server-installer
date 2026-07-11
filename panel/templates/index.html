@@ -5,414 +5,2165 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Панель управления VPN</title>
     <link rel="stylesheet" href="/static/style.css">
-    <script src="/static/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              emerald: { 500: '#10b981' },
+              amber: { 500: '#f59e0b' },
+              rose: { 500: '#f43f5e' },
+              zinc: { 500: '#71717a', 800: '#27272a', 900: '#18181b' }
+            }
+          }
+        }
+      }
+    </script>
+    <script src="/static/qrious.min.js"></script>
+    <style>
+        .ip-blurred {
+            filter: blur(4px);
+            transition: filter 0.3s ease;
+            display: inline-block;
+        }
+        .ip-blurred:hover {
+            filter: blur(1.5px);
+        }
+        .ip-unblurred {
+            filter: blur(0px) !important;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header>
-            <div>
-                <h1>Панель управления VPN</h1>
-                <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Сервер: <span id="server-ip">{{.ServerIP}}</span></p>
-            </div>
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <span class="badge">Сервер активен</span>
-                <a href="/logout" class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;">Выйти</a>
-            </div>
-        </header>
-
-        <!-- Gauges container -->
-        <div class="gauges-container">
-            <!-- CPU Gauge -->
-            <div class="gauge-card glass">
-                <span class="card-title">Загрузка CPU</span>
-                <div class="gauge-wrapper">
-                    <svg class="gauge-svg" viewBox="0 0 120 120">
-                        <circle class="gauge-bg" cx="60" cy="60" r="50"/>
-                        <circle class="gauge-fill" id="cpu-fill" cx="60" cy="60" r="50"/>
-                        <defs>
-                            <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stop-color="#6366f1"/>
-                                <stop offset="100%" stop-color="#a855f7"/>
-                            </linearGradient>
-                        </defs>
-                    </svg>
-                    <div class="gauge-value" id="cpu-val">0%</div>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">🪐</span>
+                    <span class="logo-text">VPN Portal</span>
+                </div>
+                <div class="server-badge cursor-pointer select-none" onclick="toggleIpBlur(this)" title="Нажмите, чтобы показать/скрыть IP">
+                    IP: <span class="ip-blurred" id="ip-text">{{.ServerIP}}</span>
                 </div>
             </div>
-
-            <!-- RAM Gauge -->
-            <div class="gauge-card glass">
-                <span class="card-title">Память RAM</span>
-                <div class="gauge-wrapper">
-                    <svg class="gauge-svg" viewBox="0 0 120 120">
-                        <circle class="gauge-bg" cx="60" cy="60" r="50"/>
-                        <circle class="gauge-fill" id="ram-fill" cx="60" cy="60" r="50"/>
-                    </svg>
-                    <div class="gauge-value" id="ram-val">0%</div>
-                </div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;" id="ram-details">0 / 0 MB</div>
+            
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" onclick="switchTab('dashboard', this); return false;">
+                    <span class="icon">📊</span> Состояние
+                </a>
+                <a href="#warp" class="nav-item" onclick="switchTab('warp', this); return false;">
+                    <span class="icon">🛡️</span> Режимы WARP & Proton
+                </a>
+                <a href="#dns-routing" class="nav-item" onclick="switchTab('dns-routing', this); return false;">
+                    <span class="icon">🌐</span> Обход VPN & DNS
+                </a>
+                <a href="#security" class="nav-item" onclick="switchTab('security', this); return false;">
+                    <span class="icon">⚙️</span> Настройки
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <a href="/logout" class="logout-btn">
+                    <span class="icon">🚪</span> Выйти из системы
+                </a>
             </div>
-
-            <!-- Swap Gauge -->
-            <div class="gauge-card glass">
-                <span class="card-title">Подкачка Swap</span>
-                <div class="gauge-wrapper">
-                    <svg class="gauge-svg" viewBox="0 0 120 120">
-                        <circle class="gauge-bg" cx="60" cy="60" r="50"/>
-                        <circle class="gauge-fill" id="swap-fill" cx="60" cy="60" r="50"/>
-                    </svg>
-                    <div class="gauge-value" id="swap-val">0%</div>
+        </aside>
+        
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="content-header">
+                <div>
+                    <h1 id="current-tab-title">Состояние системы</h1>
+                    <p class="tab-subtitle" id="current-tab-subtitle">Общий статус VPN-узла и мониторинг ресурсов.</p>
                 </div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;" id="swap-details">0 / 0 MB</div>
-            </div>
+            </header>
 
-            <!-- Disk Gauge -->
-            <div class="gauge-card glass">
-                <span class="card-title">Диск Disk</span>
-                <div class="gauge-wrapper">
-                    <svg class="gauge-svg" viewBox="0 0 120 120">
-                        <circle class="gauge-bg" cx="60" cy="60" r="50"/>
-                        <circle class="gauge-fill" id="disk-fill" cx="60" cy="60" r="50"/>
-                    </svg>
-                    <div class="gauge-value" id="disk-val">0%</div>
-                </div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;" id="disk-details">0 / 0 GB</div>
-            </div>
-        </div>
-
-        <!-- Dashboard Widgets Grid -->
-        <div class="grid">
-            <!-- Services Status -->
-            <div class="card glass" style="grid-column: span 2;">
-                <span class="card-title">Статус Сервисов</span>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px;">
-                    <div style="padding: 15px; background: rgba(0,0,0,0.15); border-radius: 12px; border: 1px solid rgba(255,255,255,0.02);">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <strong style="font-size: 16px;">Hysteria 2</strong>
-                            <span class="status-indicator" id="status-hysteria" style="width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted);"></span>
+            <!-- Settings Form Wrapper (covers WARP & DNS/Bypass tabs to submit together) -->
+            <form action="/save-settings" method="POST" id="settings-form">
+                <input type="hidden" name="domain_routes" id="domain_routes" value="{{.DomainRoutes}}">
+                <input type="hidden" name="warp_list" id="warp_list_hidden" value="{{.WarpList}}">
+                <input type="hidden" name="direct_list" id="direct_list_hidden" value="{{.DirectList}}">
+                <input type="hidden" name="warp_mode" id="warp_mode" value="{{if .WarpMode}}{{.WarpMode}}{{else}}global{{end}}">
+                <input type="hidden" name="hysteria_cascade" id="hysteria_cascade_hidden" value="{{if .HysteriaCascade}}{{.HysteriaCascade}}{{else}}warp{{end}}">
+                <input type="hidden" name="mieru_cascade" id="mieru_cascade_hidden" value="{{if .MieruCascade}}{{.MieruCascade}}{{else}}warp{{end}}">
+                <input type="hidden" name="anytls_cascade" id="anytls_cascade_hidden" value="{{if .AnyTLSCascade}}{{.AnyTLSCascade}}{{else}}warp{{end}}">
+                <input type="hidden" name="naive_cascade" id="naive_cascade_hidden" value="{{if .NaiveCascade}}{{.NaiveCascade}}{{else}}warp{{end}}">
+                
+                <!-- Tab 1: Dashboard -->
+                <section id="tab-dashboard" class="tab-section active">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                        <!-- CPU Radar -->
+                        <div class="flex flex-col items-center justify-center">
+                            <div id="radar-cpu" class="relative w-32 h-32 flex items-center justify-center">
+                                <span class="absolute font-mono text-xl font-bold text-zinc-100" id="cpu-val-radar">--%</span>
+                            </div>
+                            <div class="mt-3 flex items-center gap-2 text-xs uppercase tracking-widest text-zinc-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M9 4v-2m6 2v-2m-6 18v2m6-2v2m-8-6h-2m18 0h-2m-14-6h-2m18 0h-2"/></svg>
+                                <span>CPU</span>
+                            </div>
                         </div>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Порт: <span id="port-hysteria">-</span> (UDP)</p>
-                    </div>
-                    <div style="padding: 15px; background: rgba(0,0,0,0.15); border-radius: 12px; border: 1px solid rgba(255,255,255,0.02);">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <strong style="font-size: 16px;">Mieru</strong>
-                            <span class="status-indicator" id="status-mieru" style="width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted);"></span>
+                        
+                        <!-- RAM Radar -->
+                        <div class="flex flex-col items-center justify-center">
+                            <div id="radar-ram" class="relative w-32 h-32 flex items-center justify-center">
+                                <span class="absolute font-mono text-xl font-bold text-zinc-100" id="ram-val-radar">--%</span>
+                            </div>
+                            <div class="mt-3 flex items-center gap-2 text-xs uppercase tracking-widest text-zinc-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M6 6v-2m4 2v-2m4 2v-2m4 2v-2M6 18v2m4-2v2m4-2v2m4-2v2"/></svg>
+                                <span>RAM</span>
+                            </div>
                         </div>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Порт: <span id="port-mieru">-</span> (TCP/UDP)</p>
-                    </div>
-                    <div style="padding: 15px; background: rgba(0,0,0,0.15); border-radius: 12px; border: 1px solid rgba(255,255,255,0.02);">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <strong style="font-size: 16px;">AnyTLS</strong>
-                            <span class="status-indicator" id="status-anytls" style="width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted);"></span>
-                        </div>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Порт: <span id="port-anytls">-</span> (TCP)</p>
-                    </div>
-                    <div style="padding: 15px; background: rgba(0,0,0,0.15); border-radius: 12px; border: 1px solid rgba(255,255,255,0.02);">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <strong style="font-size: 16px;">NaiveProxy</strong>
-                            <span class="status-indicator" id="status-naive" style="width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted);"></span>
-                        </div>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Порт: <span id="port-naive">-</span> (H2/TCP)</p>
-                    </div>
-                </div>
 
-                <div style="margin-top: 25px; padding: 15px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.1); border-radius: 12px; display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; align-items:center; gap: 12px;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM11 16H13V18H11V16ZM11 6H13V14H11V6Z" fill="var(--primary)"/>
-                        </svg>
+                        <!-- SWAP Radar -->
+                        <div class="flex flex-col items-center justify-center">
+                            <div id="radar-swap" class="relative w-32 h-32 flex items-center justify-center">
+                                <span class="absolute font-mono text-xl font-bold text-zinc-100" id="swap-val-radar">--%</span>
+                            </div>
+                            <div class="mt-3 flex items-center gap-2 text-xs uppercase tracking-widest text-zinc-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                                <span>SWAP</span>
+                            </div>
+                        </div>
+
+                        <!-- DISK Radar -->
+                        <div class="flex flex-col items-center justify-center">
+                            <div id="radar-disk" class="relative w-32 h-32 flex items-center justify-center">
+                                <span class="absolute font-mono text-xl font-bold text-zinc-100" id="disk-val-radar">--%</span>
+                            </div>
+                            <div class="mt-3 flex items-center gap-2 text-xs uppercase tracking-widest text-zinc-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3" stroke-width="2"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" stroke-width="2"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" stroke-width="2"/></svg>
+                                <span>DISK</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Uptime and Network Bar -->
+                    <div class="flex flex-wrap items-center justify-between py-4 mb-6 border-b border-zinc-900 bg-transparent">
+                        <div class="flex items-center gap-4">
+                            <span class="text-xs uppercase tracking-widest text-zinc-500">⏱️ Время работы</span>
+                            <span class="font-mono text-sm text-zinc-100" id="uptime-val">--</span>
+                        </div>
+                        <div class="flex items-center gap-8">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs uppercase tracking-widest text-zinc-500">⚡ Скорость</span>
+                                <span class="font-mono text-sm text-zinc-100" id="net-rate-val">-- MB/s</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs uppercase tracking-widest text-zinc-500">📊 Трафик</span>
+                                <span class="font-mono text-sm text-zinc-100" id="total-traffic">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h2 class="text-xs uppercase tracking-widest text-zinc-500 mb-4">Протоколы подключения</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" id="services-list">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Subscription Manager -->
+                    <div class="mb-6">
+                        <h2 class="text-xs uppercase tracking-widest text-zinc-500 mb-4">Подключение устройств</h2>
+                        <div class="flex flex-col gap-2">
+                            <!-- Clash -->
+                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-md gap-4">
+                                <div>
+                                    <div class="font-semibold text-zinc-200 tracking-wide">Clash Verge / Clash Meta</div>
+                                    <div class="text-xs text-zinc-500 mt-1">Поддержка Mieru и AnyTLS протоколов напрямую.</div>
+                                </div>
+                                <div class="flex items-center gap-2 w-full sm:w-auto">
+                                    <input type="text" class="bg-[#09090b] border border-zinc-800 rounded px-3 py-1.5 text-xs font-mono text-zinc-400 w-full sm:w-64 focus:outline-none focus:border-zinc-600" value="https://{{.Domain}}:{{.Port}}/sub/clash/{{.Token}}.yaml" readonly id="link-clash">
+                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="copyLink('link-clash')">Копировать</button>
+                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="showQR('link-clash', 'Clash Подписка')">QR</button>
+                                </div>
+                            </div>
+                            <!-- Sing-Box -->
+                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-md gap-4">
+                                <div>
+                                    <div class="font-semibold text-zinc-200 tracking-wide">Sing-Box / Nekobox</div>
+                                    <div class="text-xs text-zinc-500 mt-1">Полный JSON профиль для современных клиентов.</div>
+                                </div>
+                                <div class="flex items-center gap-2 w-full sm:w-auto">
+                                    <input type="text" class="bg-[#09090b] border border-zinc-800 rounded px-3 py-1.5 text-xs font-mono text-zinc-400 w-full sm:w-64 focus:outline-none focus:border-zinc-600" value="https://{{.Domain}}:{{.Port}}/sub/singbox/{{.Token}}.json" readonly id="link-singbox">
+                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="copyLink('link-singbox')">Копировать</button>
+                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="showQR('link-singbox', 'Sing-Box Подписка')">QR</button>
+                                </div>
+                            </div>
+                            <!-- Universal -->
+                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-md gap-4">
+                                <div>
+                                    <div class="font-semibold text-zinc-200 tracking-wide">Универсальный (Happ / INCY)</div>
+                                    <div class="text-xs text-zinc-500 mt-1">Базовый Base64 список Hysteria 2 подключений.</div>
+                                </div>
+                                <div class="flex items-center gap-2 w-full sm:w-auto">
+                                    <input type="text" class="bg-[#09090b] border border-zinc-800 rounded px-3 py-1.5 text-xs font-mono text-zinc-400 w-full sm:w-64 focus:outline-none focus:border-zinc-600" value="https://{{.Domain}}:{{.Port}}/sub/universal/{{.Token}}.txt" readonly id="link-universal">
+                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="copyLink('link-universal')">Копировать</button>
+                                    <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs transition-colors whitespace-nowrap" onclick="showQR('link-universal', 'Универсальная подписка')">QR</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Tab 3: WARP & Proton Modes -->
+                <section id="tab-warp" class="tab-section">
+                    <!-- Simple Mode Settings Container -->
+                    <div id="warp-simple-mode" class="max-w-2xl mx-auto mt-6">
+                        <!-- Centered Premium Info Banner -->
+                        <div id="warp-info-banner-card" class="relative overflow-hidden border border-zinc-800 bg-[#09090b]/40 rounded-xl p-8 flex flex-col items-center text-center mb-8 transition-all duration-300 hover:border-emerald-950/50 hover:bg-emerald-950/[0.01]">
+                            <!-- Soft glow background -->
+                            <div id="warp-info-banner-glow" class="absolute -top-24 w-80 h-80 rounded-full bg-emerald-500/[0.02] blur-3xl pointer-events-none"></div>
+
+                            <div id="warp-status-icon-container" class="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 mb-6 shrink-0 select-none">
+                                <svg id="warp-status-svg-active" class="w-8 h-8 text-emerald-500 animate-pulse" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                                </svg>
+                                <svg id="warp-status-svg-inactive" class="w-8 h-8 text-rose-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </div>
+                            
+                            <div class="flex items-center gap-2 mb-3">
+                                <h3 id="warp-status-title" class="text-lg font-bold text-zinc-100 tracking-wide">Cloudflare WARP активен</h3>
+                                <span id="warp-status-badge" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase px-2 py-0.5 rounded-md tracking-wider select-none hidden">Подключен</span>
+                            </div>
+                            
+                            <div class="text-sm text-zinc-400 space-y-4 leading-relaxed max-w-lg mb-8">
+                                <p>
+                                    Весь трафик сервера автоматически идёт через сеть <span class="text-zinc-200 font-semibold">Cloudflare WARP</span>. Она работает быстро и не режет скорость.
+                                </p>
+                                <p>
+                                    <strong>Зачем это нужно?</strong> Многие хостинг-провайдеры выдают IP-адреса из российских подсетей. Даже если формально сервер определяется как зарубежный, крупные сайты и нейросети (вроде ChatGPT или Claude) увидят российские корни подсети и заблокируют доступ. WARP решает эту проблему — сайты будут видеть чистый международный IP-адрес.
+                                </p>
+                            </div>
+                            
+                            <div class="flex flex-wrap items-center justify-center gap-4">
+                                <button type="button" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-300 px-5 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer" onclick="toggleSimpleSettingsVisibility()">
+                                    ⚙️ Настройки маршрутизации
+                                </button>
+                                <button type="button" class="text-zinc-500 hover:text-zinc-300 text-xs font-semibold transition-colors duration-200 cursor-pointer" onclick="openAdvancedWarningModal()">
+                                    ⚙️ Перейти в расширенный режим
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Toggleable Settings Block -->
+                        <div id="simple-settings-controls" class="hidden space-y-6 pt-4 border-t border-zinc-900/60">
+                            <div class="flex justify-between items-center pb-2">
+                                <h2 class="text-xs font-bold uppercase tracking-widest text-zinc-400">Простые настройки маршрутизации</h2>
+                                <!-- Help Icon -->
+                                <button type="button" class="text-zinc-500 hover:text-zinc-300 transition-colors p-1 cursor-pointer flex items-center justify-center" onclick="openWarpHelpModal()" title="Справка по разделу">
+                                    <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <!-- 1. Mode Select -->
+                            <div class="settings-group">
+                                <label class="form-label-premium">Режим работы WARP</label>
+                                <select id="simple_mode_select" class="select-input mt-1 w-full" onchange="toggleSimpleModeTextarea(this.value)" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7;">
+                                    <option value="global">Всё через WARP (Обход блокировок по умолчанию)</option>
+                                    <option value="domains">Направлять в WARP только выбранные сайты (Все остальные напрямую)</option>
+                                </select>
+                                <span class="input-tip" id="simple-mode-tip">Все обращения будут направляться через туннель Cloudflare WARP. Вы можете указать исключения ниже.</span>
+                            </div>
+
+                            <!-- 2. Simple Domains Textarea -->
+                            <div class="settings-group">
+                                <label class="form-label-premium" id="simple-domains-label">Сайты-исключения (в обход WARP)</label>
+                                <textarea id="simple-domains-textarea" class="premium-input font-mono w-full resize-none py-1.5" rows="4" placeholder="yandex.ru&#10;sberbank.ru" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7; height: 96px; min-height: 96px;"></textarea>
+                                <span class="input-tip" id="simple-domains-tip">По одному домену на строку. Зона .ru обходится автоматически.</span>
+                            </div>
+
+                            <!-- 2b. Simple Rules Url Lists -->
+                            <div class="settings-group" id="simple-lists-group">
+                                <label class="form-label-premium" id="simple-lists-label">Списки сайтов по ссылкам</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="simple-list-url-input" class="premium-input flex-1 py-1.5" placeholder="https://example.com/list.txt" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7;">
+                                    <button type="button" class="bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-bold px-4 py-1.5 rounded-lg text-sm transition-colors cursor-pointer flex items-center justify-center" onclick="addSimpleListURL()">+</button>
+                                </div>
+                                <span class="input-tip" id="simple-lists-tip">Вставьте ссылку на файл со списком доменов (один домен на строку). Обновляется автоматически каждые 12 часов.</span>
+                                
+                                <!-- Container for added list blocks -->
+                                <div id="simple-lists-container" class="flex flex-col gap-2 mt-3"></div>
+                            </div>
+
+                            <!-- 3. Protocol Selection -->
+                            <div class="settings-group pt-4 border-t border-zinc-900">
+                                <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4">Настройка клиентских протоколов</h3>
+                                
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="p-4 border border-zinc-800 rounded-lg bg-[#09090b]/20 flex flex-col justify-between h-24">
+                                        <span class="text-xs font-bold text-zinc-300">Hysteria 2</span>
+                                        <select id="simple_hysteria_cascade" class="select-input !mt-1 !h-8 !py-1 text-xs" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7;">
+                                            <option value="warp">Cloudflare WARP</option>
+                                            <option value="direct">Напрямую (IP сервера)</option>
+                                        </select>
+                                    </div>
+                                    <div class="p-4 border border-zinc-800 rounded-lg bg-[#09090b]/20 flex flex-col justify-between h-24">
+                                        <span class="text-xs font-bold text-zinc-300">Mieru</span>
+                                        <select id="simple_mieru_cascade" class="select-input !mt-1 !h-8 !py-1 text-xs" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7;">
+                                            <option value="warp">Cloudflare WARP</option>
+                                            <option value="direct">Напрямую (IP сервера)</option>
+                                        </select>
+                                    </div>
+                                    <div class="p-4 border border-zinc-800 rounded-lg bg-[#09090b]/20 flex flex-col justify-between h-24">
+                                        <span class="text-xs font-bold text-zinc-300">AnyTLS</span>
+                                        <select id="simple_anytls_cascade" class="select-input !mt-1 !h-8 !py-1 text-xs" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7;">
+                                            <option value="warp">Cloudflare WARP</option>
+                                            <option value="direct">Напрямую (IP сервера)</option>
+                                        </select>
+                                    </div>
+                                    <div class="p-4 border border-zinc-800 rounded-lg bg-[#09090b]/20 flex flex-col justify-between h-24">
+                                        <span class="text-xs font-bold text-zinc-300">NaiveProxy</span>
+                                        <select id="simple_naive_cascade" class="select-input !mt-1 !h-8 !py-1 text-xs" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7;">
+                                            <option value="warp">Cloudflare WARP</option>
+                                            <option value="direct">Напрямую (IP сервера)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 4. Save Button -->
+                            <div class="flex justify-end pt-6 border-t border-zinc-900">
+                                <button type="submit" class="btn btn-primary !w-auto px-8" style="margin-top: 0;">Применить настройки</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Mode Content -->
+                    <div id="warp-advanced-mode" class="hidden">
+                        <div class="flex justify-between items-center mb-6 pb-4 border-b border-zinc-900">
+                            <div class="flex items-center gap-3">
+                                <h2 class="text-xs font-bold uppercase tracking-widest text-zinc-400">Расширенные настройки маршрутизации</h2>
+                                <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase px-2 py-0.5 rounded-full tracking-wider select-none">Advanced Mode</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" class="text-zinc-500 hover:text-zinc-300 transition-colors p-1 cursor-pointer flex items-center justify-center" onclick="openWarpHelpModal()" title="Справка по разделу">
+                                    <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button type="button" class="text-[10px] font-bold text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer border border-zinc-800 hover:border-zinc-700 bg-transparent rounded-lg px-3 py-1.5 ml-2" onclick="switchToSimpleMode()">
+                                    ◀️ Вернуться к стандартным
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+                            <!-- Block 1: WARP Settings (Borderless) -->
+                            <div class="flex flex-col justify-between">
+                                <div>
+                                    <div class="mb-6">
+                                        <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-1">Основная маршрутизация</h3>
+                                    </div>
+                                    
+                                    <div class="settings-group">
+                                        <label class="form-label-premium">Основной исходящий маршрут (Default Route)</label>
+                                        <select id="warp_mode_adv" class="select-input mt-1 w-full" onchange="toggleDefaultRouteGroup(this.value)" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7;">
+                                            <option value="direct" {{if eq .WarpMode "direct"}}selected{{end}}>Напрямую (IP сервера)</option>
+                                            <option value="global" {{if or (eq .WarpMode "") (eq .WarpMode "global")}}selected{{end}}>Cloudflare WARP</option>
+                                            <option value="proton-auto" {{if eq .WarpMode "proton-auto"}}selected{{end}}>Proton VPN: Авто (Самый быстрый)</option>
+                                            {{range .ProtonProfiles}}
+                                            <option value="{{.ID}}" {{if eq $.WarpMode .ID}}selected{{end}}>Proton: {{.Name}}</option>
+                                            {{end}}
+                                        </select>
+                                        <span class="input-tip">Все обращения, для которых не заданы персональные правила обхода/каскада, пойдут по этому пути.</span>
+                                        <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-semibold px-4 py-2.5 rounded-lg text-xs transition-all w-full mt-5 flex items-center justify-center gap-2 cursor-pointer" onclick="openDomainRoutesModal()">
+                                            <span>⚙️</span> Настроить маршруты доменов
+                                        </button>
+                                        
+                                        <div id="warp-rules-url-group" style="display: {{if eq .WarpMode "global"}}none{{else}}block{{end}}; margin-top: 20px;">
+                                            <label class="form-label-premium">Ссылки на списки доменов WARP (Через запятую)</label>
+                                            <input type="text" class="premium-input" name="warp_rules_url" id="adv_warp_rules_url" value="{{.WarpRulesURL}}" placeholder="https://raw.githubusercontent.com/user/repo/main/warp-domains.txt, ...">
+                                            <span class="input-tip">Все домены из этих файлов будут направляться через туннель Cloudflare WARP. Можно указать несколько через запятую.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Block 2: Proton VPN Configuration (Borderless) -->
+                            <div class="flex flex-col justify-between">
+                                <div class="flex-1 flex flex-col">
+                                    <div class="mb-6">
+                                        <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-1">Исходящий трафик (Proton VPN)</h3>
+                                    </div>
+                                    
+                                    <div class="settings-group flex-1">
+                                        <label class="form-label-premium">Добавленные профили Proton</label>
+                                        {{if .ProtonProfiles}}
+                                        <div class="space-y-2 mt-2 max-h-40 overflow-y-auto pr-1">
+                                            {{range .ProtonProfiles}}
+                                            <div class="flex items-center justify-between p-2.5 rounded-lg border border-zinc-800/80 bg-[#09090b]/40 text-xs">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-emerald-500">🟢</span>
+                                                    <span class="text-zinc-200 font-semibold">{{.Name}}</span>
+                                                    <span class="text-zinc-500 font-mono">({{.Endpoint}})</span>
+                                                </div>
+                                            </div>
+                                            {{end}}
+                                        </div>
+                                        
+                                        <button type="button" class="border border-dashed border-zinc-700 hover:border-zinc-500 bg-[#09090b]/20 hover:bg-[#09090b]/40 text-zinc-300 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all w-full mt-4 flex items-center justify-center gap-2 cursor-pointer" onclick="openProtonModal()">
+                                            <span>➕</span> Настроить ключи Proton
+                                        </button>
+                                        {{else}}
+                                        <button type="button" class="flex flex-col items-center justify-center border border-dashed border-zinc-700 hover:border-zinc-500 bg-[#09090b]/20 hover:bg-[#09090b]/40 rounded-xl p-8 transition-all w-full text-center group cursor-pointer mt-2" onclick="openProtonModal()">
+                                            <span class="text-zinc-500 group-hover:text-zinc-300 text-2xl mb-2">➕</span>
+                                            <span class="text-xs font-semibold text-zinc-300 block">Добавить сервер Proton VPN</span>
+                                            <span class="text-[10px] text-zinc-500 block mt-0.5">Импортируйте WireGuard .conf файлы конфигурации</span>
+                                        </button>
+                                        {{end}}
+
+                                        <div class="flex flex-col sm:flex-row gap-4 mt-5">
+                                            <div class="flex-1">
+                                                <label class="form-label-premium">Выбор сервера Proton</label>
+                                                <select name="proton_strategy" class="select-input !mt-1">
+                                                    <option value="fastest" {{if or (eq .ProtonStrategy "") (eq .ProtonStrategy "fastest")}}selected{{end}}>Авто: Самый быстрый</option>
+                                                    <option value="failover" {{if eq .ProtonStrategy "failover"}}selected{{end}}>По порядку (Резерв)</option>
+                                                </select>
+                                            </div>
+                                            <div class="flex-1">
+                                                <label class="form-label-premium">При падении Proton</label>
+                                                <select name="proton_fallback" class="select-input !mt-1">
+                                                    <option value="warp" {{if or (eq .ProtonFallback "") (eq .ProtonFallback "warp")}}selected{{end}}>Переключить на WARP</option>
+                                                    <option value="direct" {{if eq .ProtonFallback "direct"}}selected{{end}}>Напрямую (IP сервера)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-zinc-900 my-8">
+
+                        <!-- Block 3: Protocol Outbounds Cascade -->
+                        <div class="mt-8">
+                            <div class="mb-6">
+                                <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-1">Исходящие маршруты для служб (Каскадирование)</h3>
+                                <p class="text-xs text-zinc-500">Привяжите конкретные VPN-маршруты к каждой из запущенных служб. По умолчанию весь трафик идет через Cloudflare WARP.</p>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                <!-- Hysteria 2 Card -->
+                                <div class="relative group border border-zinc-800 hover:border-zinc-600 bg-transparent rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="font-bold text-zinc-100 tracking-wide text-sm">Hysteria 2</h4>
+                                            <span class="text-[10px] text-zinc-500 block mt-0.5">Исходящий канал для клиентов</span>
+                                        </div>
+                                    </div>
+                                    <select id="adv_hysteria_cascade" class="select-input bg-[#09090b] border-zinc-800 hover:border-zinc-700 text-zinc-300 w-full mt-auto !h-8 !py-1 text-xs">
+                                        <option value="direct" {{if eq .HysteriaCascade "direct"}}selected{{end}}>Без каскада (Direct)</option>
+                                        <option value="warp" {{if or (eq .HysteriaCascade "") (eq .HysteriaCascade "warp")}}selected{{end}}>Cloudflare WARP</option>
+                                        <option value="proton-auto" {{if eq .HysteriaCascade "proton-auto"}}selected{{end}}>Proton: Авто (Самый быстрый)</option>
+                                        {{range .ProtonProfiles}}
+                                        <option value="{{.ID}}" {{if eq $.HysteriaCascade .ID}}selected{{end}}>Proton: {{.Name}}</option>
+                                        {{end}}
+                                    </select>
+                                </div>
+
+                                <!-- Mieru Card -->
+                                <div class="relative group border border-zinc-800 hover:border-zinc-600 bg-transparent rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="font-bold text-zinc-100 tracking-wide text-sm">Mieru</h4>
+                                            <span class="text-[10px] text-zinc-500 block mt-0.5">Исходящий канал для клиентов</span>
+                                        </div>
+                                    </div>
+                                    <select id="adv_mieru_cascade" class="select-input bg-[#09090b] border-zinc-800 hover:border-zinc-700 text-zinc-300 w-full mt-auto !h-8 !py-1 text-xs">
+                                        <option value="direct" {{if eq .MieruCascade "direct"}}selected{{end}}>Без каскада (Direct)</option>
+                                        <option value="warp" {{if or (eq .MieruCascade "") (eq .MieruCascade "warp")}}selected{{end}}>Cloudflare WARP</option>
+                                        <option value="proton-auto" {{if eq .MieruCascade "proton-auto"}}selected{{end}}>Proton: Авто (Самый быстрый)</option>
+                                        {{range .ProtonProfiles}}
+                                        <option value="{{.ID}}" {{if eq $.MieruCascade .ID}}selected{{end}}>Proton: {{.Name}}</option>
+                                        {{end}}
+                                    </select>
+                                </div>
+
+                                <!-- AnyTLS Card -->
+                                <div class="relative group border border-zinc-800 hover:border-zinc-600 bg-transparent rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="font-bold text-zinc-100 tracking-wide text-sm">AnyTLS</h4>
+                                            <span class="text-[10px] text-zinc-500 block mt-0.5">Исходящий канал для клиентов</span>
+                                        </div>
+                                    </div>
+                                    <select id="adv_anytls_cascade" class="select-input bg-[#09090b] border-zinc-800 hover:border-zinc-700 text-zinc-300 w-full mt-auto !h-8 !py-1 text-xs">
+                                        <option value="direct" {{if eq .AnyTLSCascade "direct"}}selected{{end}}>Без каскада (Direct)</option>
+                                        <option value="warp" {{if or (eq .AnyTLSCascade "") (eq .AnyTLSCascade "warp")}}selected{{end}}>Cloudflare WARP</option>
+                                        <option value="proton-auto" {{if eq .AnyTLSCascade "proton-auto"}}selected{{end}}>Proton: Авто (Самый быстрый)</option>
+                                        {{range .ProtonProfiles}}
+                                        <option value="{{.ID}}" {{if eq $.AnyTLSCascade .ID}}selected{{end}}>Proton: {{.Name}}</option>
+                                        {{end}}
+                                    </select>
+                                </div>
+
+                                <!-- NaiveProxy Card -->
+                                <div class="relative group border border-zinc-800 hover:border-zinc-600 bg-transparent rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="font-bold text-zinc-100 tracking-wide text-sm">NaiveProxy</h4>
+                                            <span class="text-[10px] text-zinc-500 block mt-0.5">Исходящий канал для клиентов</span>
+                                        </div>
+                                    </div>
+                                    <select id="adv_naive_cascade" class="select-input bg-[#09090b] border-zinc-800 hover:border-zinc-700 text-zinc-300 w-full mt-auto !h-8 !py-1 text-xs">
+                                        <option value="direct" {{if eq .NaiveCascade "direct"}}selected{{end}}>Без каскада (Direct)</option>
+                                        <option value="warp" {{if or (eq .NaiveCascade "") (eq .NaiveCascade "warp")}}selected{{end}}>Cloudflare WARP</option>
+                                        <option value="proton-auto" {{if eq .NaiveCascade "proton-auto"}}selected{{end}}>Proton: Авто (Самый быстрый)</option>
+                                        {{range .ProtonProfiles}}
+                                        <option value="{{.ID}}" {{if eq $.NaiveCascade .ID}}selected{{end}}>Proton: {{.Name}}</option>
+                                        {{end}}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end mt-8 pt-4 border-t border-zinc-900">
+                                <button type="submit" class="btn btn-primary !w-auto px-8" style="margin-top: 0;">Применить настройки</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Tab 4: DNS & Bypass Routing -->
+                <section id="tab-dns-routing" class="tab-section">
+                    <div class="card tab-card">
+                        <div class="card-info-header">
+                            <h3>Обход VPN & Настройки DNS</h3>
+                            <p>Настройте прямые домены (в обход VPN-соединения на устройствах) и выберите доверенные DNS сервера.</p>
+                        </div>
+                        
+                        <div class="settings-group" style="border-bottom: 1px solid var(--card-border); padding-bottom: 24px;">
+                            <label class="form-label-premium">Правила обхода (Прямые домены из GitHub, через запятую)</label>
+                            <input type="text" class="premium-input" name="direct_rules_url" id="adv_direct_rules_url" value="{{.DirectRulesURL}}" placeholder="https://raw.githubusercontent.com/Maksre1/clash-rules/main/outside-clashx.yaml, ...">
+                            <span class="input-tip">По умолчанию: список outside-clashx.yaml (обновление каждые 6 часов). Можно указать несколько ссылок через запятую.</span>
+                            
+                            <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-semibold px-4 py-2.5 rounded-lg text-xs transition-all w-full mt-5 flex items-center justify-center gap-2 cursor-pointer" onclick="openDomainRoutesModal()">
+                                <span>⚙️</span> Настроить маршруты доменов
+                            </button>
+                        </div>
+                        
+                        <div class="settings-group" style="border-bottom: 1px solid var(--card-border); padding-bottom: 24px; padding-top: 10px;">
+                            <label class="form-label-premium">DNS для VPN-трафика (Proxy DNS)</label>
+                            <select class="select-input" name="dns_proxy" onchange="toggleCustomDNS('proxy', this)">
+                                <option value="cloudflare" {{if eq .DNSProxy "cloudflare"}}selected{{end}}>Cloudflare (1.1.1.1)</option>
+                                <option value="google" {{if eq .DNSProxy "google"}}selected{{end}}>Google (8.8.8.8)</option>
+                                <option value="adguard" {{if eq .DNSProxy "adguard"}}selected{{end}}>AdGuard DNS (Блокировка рекламы)</option>
+                                <option value="custom" {{if eq .DNSProxy "custom"}}selected{{end}}>Свой DNS сервер</option>
+                            </select>
+                            <div id="custom-dns-proxy-group" style="display: {{if eq .DNSProxy "custom"}}block{{else}}none{{end}}; margin-top: 12px;">
+                                <input type="text" class="premium-input" name="custom_dns_proxy" value="{{.CustomDNSProxy}}" placeholder="https://dns.example.com/dns-query или IP">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-group" style="padding-top: 10px;">
+                            <label class="form-label-premium">DNS для прямого трафика (Direct DNS)</label>
+                            <select class="select-input" name="dns_direct" onchange="toggleCustomDNS('direct', this)">
+                                <option value="cloudflare" {{if eq .DNSDirect "cloudflare"}}selected{{end}}>Cloudflare (1.1.1.1)</option>
+                                <option value="google" {{if eq .DNSDirect "google"}}selected{{end}}>Google (8.8.8.8)</option>
+                                <option value="adguard" {{if eq .DNSDirect "adguard"}}selected{{end}}>AdGuard DNS</option>
+                                <option value="custom" {{if eq .DNSDirect "custom"}}selected{{end}}>Свой DNS сервер</option>
+                            </select>
+                            <div id="custom-dns-direct-group" style="display: {{if eq .DNSDirect "custom"}}block{{else}}none{{end}}; margin-top: 12px;">
+                                <input type="text" class="premium-input" name="custom_dns_direct" value="{{.CustomDNSDirect}}" placeholder="8.8.4.4 или DoH-ссылка">
+                            </div>
+                        </div>
+                        
+                        <div class="settings-actions">
+                            <button type="submit" class="btn btn-primary">Применить настройки</button>
+                        </div>
+                    </div>
+                </section>
+                
+            </form>
+
+            <!-- Tab 5: Settings -->
+            <section id="tab-security" class="tab-section">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
+                    
+                    <!-- Card 1: Authorization -->
+                    <div class="card tab-card flex flex-col justify-between">
                         <div>
-                            <strong>Cloudflare WARP Tunnel</strong>
-                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;" id="warp-ip-row">Статус: проверяется...</p>
+                            <div class="card-info-header">
+                                <h3>Параметры авторизации</h3>
+                                <p>Изменение имени пользователя и пароля для входа в панель управления.</p>
+                            </div>
+                            
+                            <form action="/change-password" method="POST">
+                                <div class="settings-group">
+                                    <label class="form-label-premium">Имя пользователя (Логин)</label>
+                                    <input class="premium-input font-mono" type="text" name="admin_user" value="{{.AdminUser}}" required placeholder="admin">
+                                    
+                                    <label class="form-label-premium" style="margin-top: 20px;">Текущий пароль</label>
+                                    <input class="premium-input" type="password" name="old_password" required placeholder="Введите текущий пароль для подтверждения">
+                                    
+                                    <label class="form-label-premium" style="margin-top: 20px;">Новый пароль (Необязательно)</label>
+                                    <input class="premium-input" type="password" name="new_password" placeholder="Оставьте пустым, чтобы не менять">
+                                </div>
+                                
+                                <div class="settings-actions" style="border-top: 1px solid var(--card-border); margin-top: 24px; padding-top: 20px;">
+                                    <button type="submit" class="btn btn-primary w-full sm:w-auto">Сохранить учетные данные</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
-                    <span class="badge" id="status-warp" style="background: rgba(99,102,241,0.1); color: var(--primary); border-color: rgba(99,102,241,0.2);">Загрузка</span>
-                </div>
-            </div>
 
-            <!-- Server details -->
-            <div class="card glass">
-                <span class="card-title">О сервере</span>
-                <div style="display: flex; flex-direction: column; gap: 15px; height:100%; justify-content:center;">
-                    <div class="info-row">
-                        <span class="info-label">Uptime</span>
-                        <span class="info-val" id="server-uptime">-</span>
+                    <!-- Card 2: Domain & SSL Settings -->
+                    <div class="card tab-card flex flex-col justify-between">
+                        <div>
+                            <div class="card-info-header">
+                                <h3>Домен и SSL сертификаты</h3>
+                                <p>Настройки домена панели, путей к сертификатам и параметров верификации SSL.</p>
+                            </div>
+                            
+                            <form action="/save-settings" method="POST">
+                                <div class="settings-group">
+                                    <label class="form-label-premium">Основной домен панели</label>
+                                    <input class="premium-input font-mono" type="text" name="domain" value="{{.Domain}}" required placeholder="example.com">
+                                    
+                                    <label class="form-label-premium" style="margin-top: 20px;">Путь к SSL сертификату (.pem)</label>
+                                    <input class="premium-input font-mono" type="text" name="cert_path" value="{{.CertPath}}" required placeholder="/etc/vpn-protocols/certs/cert.pem">
+                                    
+                                    <label class="form-label-premium" style="margin-top: 20px;">Путь к приватному SSL ключу (.key)</label>
+                                    <input class="premium-input font-mono" type="text" name="key_path" value="{{.KeyPath}}" required placeholder="/etc/vpn-protocols/certs/key.pem">
+    
+                                    <div class="flex items-center justify-between mt-6 p-3 rounded-lg border border-zinc-900 bg-[#050505]/40">
+                                        <div>
+                                            <label class="form-label-premium !m-0 text-zinc-300">Игнорировать ошибки SSL</label>
+                                            <span class="text-xs text-zinc-500 block mt-0.5">При использовании самоподписанных сертификатов.</span>
+                                        </div>
+                                        <label class="relative inline-flex items-center cursor-pointer select-none">
+                                            <input type="checkbox" name="skip_cert_verify" class="sr-only peer" {{if .SkipCertVerify}}checked{{end}}>
+                                            <div class="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-zinc-100"></div>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="settings-actions" style="border-top: 1px solid var(--card-border); margin-top: 24px; padding-top: 20px;">
+                                    <button type="submit" class="btn btn-primary w-full sm:w-auto">Сохранить параметры SSL</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                    <div class="info-row">
-                        <span class="info-label">Виртуализация</span>
-                        <span class="info-val">{{.Virt}}</span>
+
+                    <!-- Card 3: WARP+ License Settings -->
+                    <div class="card tab-card flex flex-col justify-between">
+                        <div>
+                            <div class="card-info-header">
+                                <h3>Лицензия Cloudflare WARP+</h3>
+                                <p>Активация премиум-режима (WARP+) повышает скорость, стабильность и качество пинга.</p>
+                            </div>
+                            
+                            <form action="/save-settings" method="POST">
+                                <div class="settings-group">
+                                    <label class="form-label-premium">Лицензионный ключ WARP+</label>
+                                    <div class="flex items-center gap-3 mt-2">
+                                        <input type="text" class="premium-input font-mono !mt-0" id="warp_license_key_field" name="warp_license_key" value="{{.WarpLicenseKey}}" placeholder="например, xxxx-xxxx-xxxx" style="margin-top: 0 !important; height: 40px;">
+                                        <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap" id="activate-warp-btn" onclick="activateWarpKey()" style="height: 40px; min-width: 130px; display: inline-flex; align-items: center; justify-content: center;">Активировать</button>
+                                    </div>
+                                    <span class="input-tip mt-2 block">Активация мгновенно применит ключ на сервере. Оставьте поле пустым для бесплатного тарифа.</span>
+                                </div>
+                                
+                                <div class="settings-actions" style="border-top: 1px solid var(--card-border); margin-top: 24px; padding-top: 20px;">
+                                    <button type="submit" class="btn btn-primary w-full sm:w-auto">Сохранить ключ</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                    <div class="info-row">
-                        <span class="info-label">Архитектура</span>
-                        <span class="info-val">{{.Arch}}</span>
+
+                </div>
+
+                <!-- Card 4: Panel Update -->
+                <div class="card tab-card mt-6">
+                    <div class="card-info-header">
+                        <h3>Обновление панели управления</h3>
+                        <p>Автоматическая синхронизация исходного кода с репозиторием GitHub, перекомпиляция бинарного файла и мягкий перезапуск веб-интерфейса.</p>
                     </div>
-                    <div class="info-row">
-                        <span class="info-label">Всего трафика</span>
-                        <span class="info-val" id="traffic-total">0.00 GB</span>
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-muted); display:flex; justify-content:space-between;">
-                        <span>Вход: <span id="traffic-in">0 MB</span></span>
-                        <span>Выход: <span id="traffic-out">0 MB</span></span>
+                    <div class="settings-actions" style="border-top: none; padding-top: 0;">
+                        <button type="button" onclick="updatePanel(this)" class="btn bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-semibold px-6 py-2.5 rounded transition-all duration-300 flex items-center gap-2">
+                            <span>🔄</span> Проверить и установить обновления
+                        </button>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Traffic graph and pie chart -->
-        <div class="grid" style="grid-template-columns: 2fr 1fr;">
-            <!-- Traffic history graph -->
-            <div class="card glass">
-                <span class="card-title">Использование сети (24ч)</span>
-                <div class="graph-container">
-                    <canvas id="traffic-chart"></canvas>
-                </div>
-            </div>
-
-            <!-- Protocol breakdown pie chart -->
-            <div class="card glass">
-                <span class="card-title">По протоколам</span>
-                <div class="graph-container">
-                    <canvas id="protocol-chart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Subscription Links -->
-        <div class="section glass">
-            <div class="section-header">
-                <h3 class="section-title">Ссылки на подписки клиентов</h3>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Подписка Clash Verge Rev (mihomo core)</label>
-                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Включает: Hysteria2, Mieru, AnyTLS (без NaiveProxy)</div>
-                <div class="copy-widget">
-                    <input class="form-input copy-input" type="text" id="clash-link" readonly value="https://{{.Domain}}:{{.Port}}/sub/clash/{{.Token}}">
-                    <button class="btn btn-secondary" onclick="copyLink('clash-link')">Копировать</button>
-                </div>
-            </div>
-            <div class="form-group" style="margin-top: 25px;">
-                <label class="form-label">Подписка sing-box / NekoBox</label>
-                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Включает: Hysteria2, Mieru, AnyTLS, NaiveProxy (все 4 протокола нативно)</div>
-                <div class="copy-widget">
-                    <input class="form-input copy-input" type="text" id="singbox-link" readonly value="https://{{.Domain}}:{{.Port}}/sub/singbox/{{.Token}}">
-                    <button class="btn btn-secondary" onclick="copyLink('singbox-link')">Копировать</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Configuration & Routing -->
-        <div class="section glass">
-            <div class="section-header">
-                <h3 class="section-title">Маршрутизация и WARP на сервере</h3>
-            </div>
-
-            <form action="/save-settings" method="POST">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 25px; padding: 15px; background: rgba(255,255,255,0.01); border: 1px solid var(--card-border); border-radius:12px;">
-                    <div>
-                        <strong style="display:block; font-size:16px;">Перенаправлять весь трафик VPS через WARP</strong>
-                        <span style="font-size:13px; color:var(--text-muted);">Включено: весь исходящий трафик сервера идет через WARP. Отключено: только выбранные домены ниже.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="warp_global" id="warp-global-toggle" {{if .WarpGlobal}}checked{{endif}}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Прямое подключение (DIRECT) — домены в обход VPN (один на строку)</label>
-                    <textarea class="form-input" name="direct_list" rows="8" style="font-family: monospace; font-size: 13px; resize: vertical;" placeholder="Пример: yandex.ru">{{.DirectList}}</textarea>
-                </div>
-
-                <div class="form-group" style="margin-top: 20px;">
-                    <label class="form-label">Принудительно через WARP — домены (один на строку)</label>
-                    <textarea class="form-input" name="warp_list" rows="8" style="font-family: monospace; font-size: 13px; resize: vertical;" placeholder="Пример: openai.com">{{.WarpList}}</textarea>
-                </div>
-
-                <div style="text-align: right; margin-top: 20px;">
-                    <button type="submit" class="btn">Сохранить настройки</button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Account Settings -->
-        <div class="section glass">
-            <div class="section-header">
-                <h3 class="section-title">Настройки администратора</h3>
-            </div>
-            <form action="/change-password" method="POST" style="max-width: 500px;">
-                <div class="form-group">
-                    <label class="form-label" for="old_password">Текущий пароль</label>
-                    <input class="form-input" type="password" id="old_password" name="old_password" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="new_password">Новый пароль</label>
-                    <input class="form-input" type="password" id="new_password" name="new_password" required minlength="8">
-                </div>
-                <button type="submit" class="btn">Изменить пароль</button>
-            </form>
-        </div>
+            </section>
+        </main>
     </div>
 
+    <!-- Toggle Sidebar Mobile Trigger (for responsiveness) -->
+    <button type="button" class="mobile-nav-toggle" onclick="toggleMobileSidebar()">☰</button>
+
     <script>
-        // Copy link helper
+        // SPA Tabs Controller
+        function switchTab(tabId, el) {
+            // Hide all tab sections
+            document.querySelectorAll('.tab-section').forEach(sec => sec.classList.remove('active'));
+            // Deactivate all nav items
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            
+            // Show selected tab section
+            const targetTab = document.getElementById(`tab-${tabId}`);
+            if (targetTab) targetTab.classList.add('active');
+            
+            // Activate selected nav item
+            if (el) {
+                el.classList.add('active');
+            } else {
+                const navEl = document.querySelector(`.nav-item[href="#${tabId}"]`);
+                if (navEl) navEl.classList.add('active');
+            }
+            
+            // Update title and description dynamically in header
+            const titles = {
+                'dashboard': 'Состояние системы',
+                'warp': 'Маршрутизация WARP',
+                'dns-routing': 'Обход VPN & DNS',
+                'security': 'Безопасность'
+            };
+            const subtitles = {
+                'dashboard': 'Общий статус VPN-узла и управление клиентскими подписками.',
+                'warp': 'Cloudflare WARP позволяет скрыть реальный IP-адрес сервера при обращении к внешним ресурсам.',
+                'dns-routing': 'Настройте прямые домены (в обход VPN-соединения на устройствах) и выберите доверенные DNS сервера.',
+                'security': 'Регулярно меняйте пароль администратора для защиты панели от несанкционированного доступа.'
+            };
+            
+            document.getElementById('current-tab-title').innerText = titles[tabId] || 'Панель управления';
+            document.getElementById('current-tab-subtitle').innerText = subtitles[tabId] || '';
+            
+            // Save tab state to localStorage so it survives reload
+            localStorage.setItem('active_tab', tabId);
+            
+            // Close mobile sidebar if open
+            document.querySelector('.sidebar').classList.remove('mobile-open');
+        }
+
+        function toggleMobileSidebar() {
+            document.querySelector('.sidebar').classList.toggle('mobile-open');
+        }
+
+        // Default Route Toggle Group
+        function toggleDefaultRouteGroup(val) {
+            const urlGroup = document.getElementById('warp-rules-url-group');
+            if (val === 'global') {
+                urlGroup.style.display = 'none';
+            } else {
+                urlGroup.style.display = 'block';
+            }
+        }
+
+        // Activate WARP+ Key Action
+        function activateWarpKey() {
+            const key = document.getElementById('warp_license_key_field').value.trim();
+            const btn = document.getElementById('activate-warp-btn');
+            const oldText = btn.innerText;
+            btn.innerText = 'Активация...';
+            btn.disabled = true;
+
+            fetch('/api/save-protocol-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ protocol: 'WARP', port: 0, username: '', password: key, sni: '' })
+            })
+            .then(res => {
+                if (res.ok) {
+                    alert('Лицензионный ключ WARP+ успешно применен и активирован!');
+                    updateMetrics();
+                } else {
+                    res.text().then(text => {
+                        alert('Ошибка активации ключа: ' + text);
+                    });
+                }
+            })
+            .catch(err => {
+                alert('Ошибка соединения с сервером');
+                console.error(err);
+            })
+            .finally(() => {
+                btn.innerText = oldText;
+                btn.disabled = false;
+            });
+        }
+
+        // DNS Custom Fields Toggle
+        function toggleCustomDNS(type, select) {
+            const customGroup = document.getElementById(`custom-dns-${type}-group`);
+            if (select.value === 'custom') {
+                customGroup.style.display = 'block';
+            } else {
+                customGroup.style.display = 'none';
+            }
+        }
+
+        // Copy Widgets Helper
         function copyLink(id) {
             var copyText = document.getElementById(id);
             copyText.select();
             copyText.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(copyText.value);
-            alert("Ссылка скопирована в буфер обмена!");
+            document.execCommand("copy");
+            
+            var btn = copyText.nextElementSibling;
+            var oldText = btn.innerText;
+            btn.innerText = "Скопировано";
+            btn.style.color = "var(--success)";
+            setTimeout(() => { 
+                btn.innerText = oldText; 
+                btn.style.color = "";
+            }, 2000);
         }
 
-        // Setup Charts
-        var ctxTraffic = document.getElementById('traffic-chart').getContext('2d');
-        var trafficChart = new Chart(ctxTraffic, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Входящий (MB/s)',
-                    data: [],
-                    borderColor: '#6366f1',
-                    backgroundColor: 'rgba(99, 102, 241, 0.05)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                }, {
-                    label: 'Исходящий (MB/s)',
-                    data: [],
-                    borderColor: '#a855f7',
-                    backgroundColor: 'rgba(168, 85, 247, 0.05)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: true, labels: { color: '#94a3b8' } }
-                },
-                scales: {
-                    x: { grid: { color: 'rgba(255, 255, 255, 0.03)' }, ticks: { color: '#94a3b8' } },
-                    y: { grid: { color: 'rgba(255, 255, 255, 0.03)' }, ticks: { color: '#94a3b8' } }
-                }
-            }
-        });
+        function updatePanel(btn) {
+            if (!confirm("Вы уверены, что хотите запустить обновление панели? Это перезапустит веб-интерфейс.")) return;
+            const oldText = btn.innerText;
+            btn.innerText = "Запуск обновления...";
+            btn.disabled = true;
 
-        var ctxProto = document.getElementById('protocol-chart').getContext('2d');
-        var protocolChart = new Chart(ctxProto, {
-            type: 'doughnut',
-            data: {
-                labels: ['Hysteria 2', 'Mieru', 'AnyTLS', 'NaiveProxy'],
-                datasets: [{
-                    data: [0, 0, 0, 0],
-                    backgroundColor: ['#6366f1', '#a855f7', '#ec4899', '#10b981'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12 } }
-                }
-            }
-        });
+            fetch('/api/update-panel', { method: 'POST' })
+                .then(res => {
+                    if (res.ok) {
+                        alert("Обновление успешно запущено в фоновом режиме! Страница перезагрузится через 6 секунд.");
+                        setTimeout(() => { window.location.reload(); }, 6000);
+                    } else {
+                        alert("Ошибка запуска обновления: сервер вернул статус " + res.status);
+                        btn.innerText = oldText;
+                        btn.disabled = false;
+                    }
+                })
+                .catch(err => {
+                    alert("Связь с сервером прервана (сервер обновляется и перезапускается). Перезагрузка страницы...");
+                    setTimeout(() => { window.location.reload(); }, 4000);
+                });
+        }
 
-        // Metrics polling function
+        // Format system units
+        function formatBytes(bytes, decimals = 2) {
+            if (!+bytes) return '0 B';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+        }
+
+        class DotRadar {
+            constructor(containerId, totalDots = 40) {
+                this.container = document.getElementById(containerId);
+                if (!this.container) return;
+                this.totalDots = totalDots;
+                this.currentValue = 0;
+                this.targetValue = 0;
+                this.dots = [];
+                this.initSVG();
+                this.animate = this.animate.bind(this);
+                requestAnimationFrame(this.animate);
+            }
+
+            initSVG() {
+                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svg.setAttribute("viewBox", "0 0 100 100");
+                svg.classList.add("w-full", "h-full", "transform", "-rotate-90");
+
+                const cx = 50;
+                const cy = 50;
+                const r = 40;
+                // Draw arc from -135 to 135 degrees (0 is top due to rotate-90)
+                const startAngle = -135 * (Math.PI / 180);
+                const endAngle = 135 * (Math.PI / 180);
+                const angleRange = endAngle - startAngle;
+
+                for (let i = 0; i < this.totalDots; i++) {
+                    const angle = startAngle + (i / (this.totalDots - 1)) * angleRange;
+                    const x = cx + r * Math.cos(angle);
+                    const y = cy + r * Math.sin(angle);
+
+                    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    dot.setAttribute("cx", x);
+                    dot.setAttribute("cy", y);
+                    dot.setAttribute("r", "2"); // Slightly larger dots for better visibility
+                    dot.setAttribute("fill", "#27272a"); // zinc-800
+                    dot.style.transition = "fill 0.2s ease";
+
+                    svg.appendChild(dot);
+                    this.dots.push(dot);
+                }
+
+                svg.style.position = "absolute";
+                svg.style.top = "0";
+                svg.style.left = "0";
+                svg.style.zIndex = "0";
+                this.container.appendChild(svg);
+            }
+
+            setValue(val) {
+                this.targetValue = Math.min(100, Math.max(0, val));
+            }
+
+            getDotColor(index) {
+                const percent = (index / (this.totalDots - 1)) * 100;
+                // Colors
+                const green = {r: 16, g: 185, b: 129};  // #10b981
+                const yellow = {r: 245, g: 158, b: 11}; // #f59e0b
+                const red = {r: 244, g: 63, b: 94};     // #f43f5e
+
+                let c1, c2, p;
+                if (percent <= 50) {
+                    c1 = green;
+                    c2 = yellow;
+                    p = percent / 50;
+                } else {
+                    c1 = yellow;
+                    c2 = red;
+                    p = (percent - 50) / 50;
+                }
+
+                const r = Math.round(c1.r + (c2.r - c1.r) * p);
+                const g = Math.round(c1.g + (c2.g - c1.g) * p);
+                const b = Math.round(c1.b + (c2.b - c1.b) * p);
+
+                return `rgb(${r}, ${g}, ${b})`;
+            }
+
+            animate() {
+                const diff = this.targetValue - this.currentValue;
+                if (Math.abs(diff) > 0.1) {
+                    this.currentValue += diff * 0.1;
+                } else {
+                    this.currentValue = this.targetValue;
+                }
+
+                const activeCount = Math.round((this.currentValue / 100) * this.totalDots);
+
+                for (let i = 0; i < this.totalDots; i++) {
+                    if (i < activeCount) {
+                        this.dots[i].setAttribute("fill", this.getDotColor(i));
+                    } else {
+                        this.dots[i].setAttribute("fill", "#27272a"); // zinc-800
+                    }
+                }
+
+                requestAnimationFrame(this.animate);
+            }
+        }
+
+        let radars = {};
+        
+        function initCharts() {
+            radars.cpu = new DotRadar('radar-cpu');
+            radars.ram = new DotRadar('radar-ram');
+            radars.swap = new DotRadar('radar-swap');
+            radars.disk = new DotRadar('radar-disk');
+        }
+
+        // Fetch Live Metrics and update DOM
         function updateMetrics() {
             fetch('/api/metrics')
                 .then(response => response.json())
                 .then(data => {
-                    // Update Gauges
-                    updateGauge('cpu', data.CPU);
-                    updateGauge('ram', data.RAMPercent, `${Math.round(data.RAMUsed / 1024 / 1024)} / ${Math.round(data.RAMTotal / 1024 / 1024)} MB`);
-                    updateGauge('swap', data.SwapPercent, `${Math.round(data.SwapUsed / 1024 / 1024)} / ${Math.round(data.SwapTotal / 1024 / 1024)} MB`);
-                    updateGauge('disk', data.DiskPercent, `${Math.round(data.DiskUsed / 1024 / 1024 / 1024)} / ${Math.round(data.DiskTotal / 1024 / 1024 / 1024)} GB`);
+                    // Update Radar Values
+                    if (radars.cpu) radars.cpu.setValue(data.CPU);
+                    if (radars.ram) radars.ram.setValue(data.RAMPercent);
+                    if (radars.swap) radars.swap.setValue(data.SwapPercent || 0); // Handle zero correctly
+                    if (radars.disk) radars.disk.setValue(data.DiskPercent);
 
-                    // Update Server Info
-                    document.getElementById('server-uptime').innerText = data.Uptime;
-                    document.getElementById('traffic-total').innerText = (data.TrafficTotal / 1024 / 1024 / 1024).toFixed(2) + ' GB';
-                    document.getElementById('traffic-in').innerText = Math.round(data.TrafficIn / 1024 / 1024) + ' MB';
-                    document.getElementById('traffic-out').innerText = Math.round(data.TrafficOut / 1024 / 1024) + ' MB';
+                    // Update Text Values
+                    document.getElementById('cpu-val-radar').innerText = data.CPU.toFixed(0) + '%';
+                    document.getElementById('ram-val-radar').innerText = data.RAMPercent.toFixed(0) + '%';
+                    document.getElementById('swap-val-radar').innerText = (data.SwapPercent || 0).toFixed(0) + '%';
+                    document.getElementById('disk-val-radar').innerText = data.DiskPercent.toFixed(0) + '%';
 
-                    // Update Services Status
-                    updateServiceStatus('hysteria', data.Services.Hysteria2.Active, data.Services.Hysteria2.Port);
-                    updateServiceStatus('mieru', data.Services.Mieru.Active, data.Services.Mieru.Port);
-                    updateServiceStatus('anytls', data.Services.AnyTLS.Active, data.Services.AnyTLS.Port);
-                    updateServiceStatus('naive', data.Services.NaiveProxy.Active, data.Services.NaiveProxy.Port);
+                    // Update Uptime and Network
+                    document.getElementById('uptime-val').innerText = data.Uptime;
+                    document.getElementById('total-traffic').innerText = formatBytes(data.TrafficTotal);
 
-                    // Update WARP Status
-                    var warpIndicator = document.getElementById('status-warp');
-                    var warpIPText = document.getElementById('warp-ip-row');
-                    if (data.Services.WARP.Active) {
-                        warpIndicator.className = "badge";
-                        warpIndicator.style.background = "rgba(16, 185, 129, 0.1)";
-                        warpIndicator.style.color = "var(--success)";
-                        warpIndicator.style.borderColor = "rgba(16, 185, 129, 0.2)";
-                        warpIndicator.innerText = "Подключен";
-                        warpIPText.innerText = "WARP IP: " + data.Services.WARP.IP + " (Задержка: " + data.Services.WARP.Latency + " ms)";
+                    if(data.History && data.History.Labels && data.History.Labels.length > 0) {
+                        const len = data.History.Labels.length;
+                        const lastIn = data.History.InRates[len-1] || 0;
+                        const lastOut = data.History.OutRates[len-1] || 0;
+                        document.getElementById('net-rate-val').innerText = `↓ ${lastIn.toFixed(1)} ↑ ${lastOut.toFixed(1)} MB/s`;
+                    // Update WARP banner status dynamically
+                    const isWarpActive = data.WARP && data.WARP.Active;
+                    const warpCard = document.getElementById('warp-info-banner-card');
+                    const warpGlow = document.getElementById('warp-info-banner-glow');
+                    const iconContainer = document.getElementById('warp-status-icon-container');
+                    const svgActive = document.getElementById('warp-status-svg-active');
+                    const svgInactive = document.getElementById('warp-status-svg-inactive');
+                    const statusTitle = document.getElementById('warp-status-title');
+                    const statusBadge = document.getElementById('warp-status-badge');
+
+                    if (warpCard) {
+                        if (isWarpActive) {
+                            warpCard.className = "relative overflow-hidden border border-zinc-800 bg-[#09090b]/40 rounded-xl p-8 flex flex-col items-center text-center mb-8 transition-all duration-300 hover:border-emerald-950/50 hover:bg-emerald-950/[0.01]";
+                            warpGlow.className = "absolute -top-24 w-80 h-80 rounded-full bg-emerald-500/[0.02] blur-3xl pointer-events-none";
+                            iconContainer.className = "w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 mb-6 shrink-0 select-none";
+                            svgActive.classList.remove('hidden');
+                            svgInactive.classList.add('hidden');
+                            statusTitle.innerText = "Cloudflare WARP активен";
+                            statusTitle.className = "text-lg font-bold text-zinc-100 tracking-wide";
+                            statusBadge.className = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase px-2 py-0.5 rounded-md tracking-wider select-none";
+                            statusBadge.innerText = "Подключен";
+                            statusBadge.classList.remove('hidden');
+                        } else {
+                            warpCard.className = "relative overflow-hidden border border-rose-900/30 bg-rose-950/[0.02] rounded-xl p-8 flex flex-col items-center text-center mb-8 transition-all duration-300 hover:border-rose-800/40";
+                            warpGlow.className = "absolute -top-24 w-80 h-80 rounded-full bg-rose-500/[0.01] blur-3xl pointer-events-none";
+                            iconContainer.className = "w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center border border-rose-500/20 mb-6 shrink-0 select-none";
+                            svgActive.classList.add('hidden');
+                            svgInactive.classList.remove('hidden');
+                            statusTitle.innerText = "Cloudflare WARP не активен";
+                            statusTitle.className = "text-lg font-bold text-rose-400 tracking-wide";
+                            statusBadge.className = "bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] font-bold uppercase px-2 py-0.5 rounded-md tracking-wider select-none";
+                            statusBadge.innerText = "Отключен";
+                            statusBadge.classList.remove('hidden');
+                        }
+                    }
+
+                    // Update Services
+                    const sList = document.getElementById('services-list');
+                    let html = '';
+                    for (const [key, info] of Object.entries(data.Services)) {
+                        if (key === 'WARP') continue;
+                        const isOffline = !info.active;
+                        const statusColor = info.active ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]';
+                        const statusText = info.active ? 'Активен' : 'Офлайн';
+                        const bgClass = isOffline 
+                            ? 'border-rose-950/80 hover:border-rose-700/60 bg-rose-950/5' 
+                            : 'border-zinc-800 hover:border-zinc-600 bg-transparent';
+                        
+                        let portInfo = '';
+                        let trafficInfo = '';
+                        if (key === 'WARP') {
+                            portInfo = info.active ? info.ip : '--';
+                            trafficInfo = '';
+                        } else {
+                            portInfo = info.active ? `Port ${info.port}` : '--';
+                            trafficInfo = info.active ? formatBytes(info.traffic) : '';
+                        }
+
+                        let actionsHTML = '';
+                        if (key !== 'WARP') {
+                            const pencilBtn = `
+                            <button type="button" class="text-zinc-500 hover:text-zinc-300 transition-colors p-1" onclick="openProtocolSettings('${key}')" title="Настройки ${key}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                            </button>`;
+
+                            const qrBtn = `
+                            <button type="button" class="text-zinc-500 hover:text-zinc-300 transition-colors p-1" onclick="showServiceQR('${key}')" title="QR-код ${key}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                                    <rect x="3" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="14" width="7" height="7"></rect>
+                                    <rect x="3" y="14" width="7" height="7"></rect>
+                                </svg>
+                            </button>`;
+
+                            actionsHTML = `
+                            <div class="absolute top-4 right-4 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                ${qrBtn}
+                                ${pencilBtn}
+                            </div>`;
+                        }
+
+                        html += `
+                        <div class="relative group border rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none ${bgClass}">
+                            <div class="flex justify-between items-start">
+                                <div class="font-bold text-zinc-100 tracking-wide text-sm">${key}</div>
+                                ${actionsHTML}
+                            </div>
+                            <div class="flex items-center justify-between mt-auto">
+                                <div class="font-mono text-xs text-zinc-500">${portInfo}</div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-zinc-500 whitespace-nowrap">${trafficInfo || statusText}</span>
+                                    <div class="w-2.5 h-2.5 rounded-full ${statusColor}"></div>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
+                    sList.innerHTML = html;
+                })
+                .catch(error => console.error('Ошибка загрузки данных:', error));
+        }
+
+        // Protocol Settings Modal logic
+        function openProtocolSettings(protocol) {
+            document.getElementById('protocol-modal-name').value = protocol;
+            document.getElementById('protocol-modal-title').innerText = `Настройки: ${protocol}`;
+            
+            fetch('/api/protocol-settings')
+                .then(res => res.json())
+                .then(data => {
+                    const protoData = data[protocol];
+                    if (!protoData) return;
+
+                    const portContainer = document.getElementById('protocol-modal-port').parentElement.parentElement;
+                    const userContainer = document.getElementById('protocol-modal-user-container');
+                    const userField = document.getElementById('protocol-modal-user');
+                    const sniContainer = document.getElementById('protocol-modal-sni-container');
+                    const sniField = document.getElementById('protocol-modal-sni');
+                    const passwordLabel = document.getElementById('protocol-modal-password-label');
+                    const passwordField = document.getElementById('protocol-modal-password');
+
+                    document.getElementById('protocol-modal-port').value = protoData.port || '';
+                    passwordField.value = protoData.password || '';
+
+                    if (protocol === 'WARP') {
+                        portContainer.classList.add('hidden');
+                        userContainer.classList.add('hidden');
+                        userField.value = '';
+                        sniContainer.classList.add('hidden');
+                        sniField.value = '';
+                        passwordLabel.innerText = 'Лицензионный ключ WARP+';
+                        passwordField.placeholder = 'xxxx-xxxx-xxxx';
                     } else {
-                        warpIndicator.className = "badge";
-                        warpIndicator.style.background = "rgba(239, 68, 68, 0.1)";
-                        warpIndicator.style.color = "var(--danger)";
-                        warpIndicator.style.borderColor = "rgba(239, 68, 68, 0.2)";
-                        warpIndicator.innerText = "Отключен";
-                        warpIPText.innerText = "Интерфейс WARP не запущен";
+                        portContainer.classList.remove('hidden');
+                        passwordLabel.innerText = 'Пароль / Токен';
+                        passwordField.placeholder = 'Пароль';
+
+                        if (protocol === 'Mieru' || protocol === 'NaiveProxy') {
+                            userContainer.classList.remove('hidden');
+                            userField.value = protoData.username || '';
+                        } else {
+                            userContainer.classList.add('hidden');
+                            userField.value = '';
+                        }
+
+                        if (protocol === 'Hysteria2' || protocol === 'AnyTLS' || protocol === 'NaiveProxy') {
+                            sniContainer.classList.remove('hidden');
+                            sniField.value = protoData.sni || '';
+                        } else {
+                            sniContainer.classList.add('hidden');
+                            sniField.value = '';
+                        }
                     }
 
-                    // Update Charts
-                    if (data.History && data.History.Labels) {
-                        trafficChart.data.labels = data.History.Labels;
-                        trafficChart.data.datasets[0].data = data.History.InRates;
-                        trafficChart.data.datasets[1].data = data.History.OutRates;
-                        trafficChart.update();
-                    }
-
-                    protocolChart.data.datasets[0].data = [
-                        data.Services.Hysteria2.Traffic / 1024 / 1024,
-                        data.Services.Mieru.Traffic / 1024 / 1024,
-                        data.Services.AnyTLS.Traffic / 1024 / 1024,
-                        data.Services.NaiveProxy.Traffic / 1024 / 1024
-                    ];
-                    protocolChart.update();
+                    const modal = document.getElementById('protocol-modal');
+                    const content = document.getElementById('protocol-modal-content');
+                    modal.classList.remove('hidden');
+                    void modal.offsetWidth;
+                    modal.classList.remove('opacity-0');
+                    content.classList.remove('scale-95');
+                })
+                .catch(err => {
+                    alert('Ошибка загрузки настроек');
+                    console.error(err);
                 });
         }
 
-        function updateGauge(id, percent, details) {
-            var fill = document.getElementById(id + '-fill');
-            var val = document.getElementById(id + '-val');
-            var detailsEl = document.getElementById(id + '-details');
+        function closeProtocolSettings() {
+            const modal = document.getElementById('protocol-modal');
+            const content = document.getElementById('protocol-modal-content');
+            
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
 
-            var offset = 314 - (314 * percent / 100);
-            fill.style.strokeDashoffset = offset;
-            val.innerText = Math.round(percent) + '%';
+        function saveProtocolSettings() {
+            const protocol = document.getElementById('protocol-modal-name').value;
+            const portVal = document.getElementById('protocol-modal-port').value;
+            const port = portVal ? parseInt(portVal) : 0;
+            const username = document.getElementById('protocol-modal-user').value;
+            const password = document.getElementById('protocol-modal-password').value;
+            const sni = document.getElementById('protocol-modal-sni').value;
 
-            if (details && detailsEl) {
-                detailsEl.innerText = details;
+            if (protocol !== 'WARP' && (!port || port <= 0 || port > 65535)) {
+                alert('Пожалуйста, введите корректный порт (1-65535)');
+                return;
+            }
+
+            const btn = document.getElementById('protocol-modal-save-btn');
+            const oldText = btn.innerText;
+            btn.innerText = 'Сохранение...';
+            btn.disabled = true;
+
+            fetch('/api/save-protocol-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ protocol, port, username, password, sni })
+            })
+            .then(res => {
+                if (res.ok) {
+                    if (protocol === 'WARP') {
+                        alert('Лицензионный ключ WARP+ успешно применен и активирован!');
+                    } else {
+                        alert('Настройки успешно изменены и применены! Сервис перезапущен.');
+                    }
+                    closeProtocolSettings();
+                    updateMetrics();
+                } else {
+                    res.text().then(text => {
+                        alert('Ошибка сохранения настроек: ' + text);
+                    });
+                }
+            })
+            .catch(err => {
+                alert('Настройки применены, перезапуск службы...');
+                closeProtocolSettings();
+                setTimeout(updateMetrics, 2000);
+            })
+            .finally(() => {
+                btn.innerText = oldText;
+                btn.disabled = false;
+            });
+        }
+
+        function randomizeField(type) {
+            if (type === 'port') {
+                const randPort = Math.floor(Math.random() * (65000 - 10000 + 1)) + 10000;
+                document.getElementById('protocol-modal-port').value = randPort;
+            } else if (type === 'user') {
+                const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+                let randUser = '';
+                for (let i = 0; i < 8; i++) {
+                    randUser += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                document.getElementById('protocol-modal-user').value = randUser;
+            } else if (type === 'password') {
+                const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                let randPass = '';
+                for (let i = 0; i < 16; i++) {
+                    randPass += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                document.getElementById('protocol-modal-password').value = randPass;
+            } else if (type === 'sni') {
+                const safeSNIs = [
+                    'images.apple.com',
+                    'dl.google.com',
+                    'www.microsoft.com',
+                    'cloudflare.com',
+                    'www.speedtest.net',
+                    'update.microsoft.com',
+                    'crl.apple.com'
+                ];
+                const currentVal = document.getElementById('protocol-modal-sni').value;
+                let availableSNIs = safeSNIs.filter(sni => sni !== currentVal);
+                if (availableSNIs.length === 0) availableSNIs = safeSNIs;
+                const randSNI = availableSNIs[Math.floor(Math.random() * availableSNIs.length)];
+                document.getElementById('protocol-modal-sni').value = randSNI;
             }
         }
 
-        function updateServiceStatus(id, active, port) {
-            var indicator = document.getElementById('status-' + id);
-            var portEl = document.getElementById('port-' + id);
-            if (active) {
-                indicator.style.background = "var(--success)";
-                indicator.style.boxShadow = "0 0 10px rgba(16, 185, 129, 0.5)";
+        let qrGenerator = null;
+
+        function copyQRValue() {
+            const val = document.getElementById('qr-modal-value').innerText;
+            if (!val) return;
+            navigator.clipboard.writeText(val).then(() => {
+                const overlaySpan = document.querySelector('#qr-modal-content .group-hover\\:opacity-100 span');
+                if (overlaySpan) {
+                    const oldHTML = overlaySpan.innerHTML;
+                    overlaySpan.innerHTML = `
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Скопировано!
+                    `;
+                    setTimeout(() => {
+                        overlaySpan.innerHTML = oldHTML;
+                    }, 1500);
+                }
+            }).catch(err => {
+                console.error('Ошибка копирования:', err);
+            });
+        }
+
+        function copyQRValueFromText(el) {
+            const val = el.innerText;
+            if (!val || val === 'Скопировано в буфер!') return;
+            navigator.clipboard.writeText(val).then(() => {
+                const oldColor = el.className;
+                el.innerText = 'Скопировано в буфер!';
+                el.classList.add('text-emerald-400');
+                setTimeout(() => {
+                    el.innerText = val;
+                    el.className = oldColor;
+                }, 1200);
+            }).catch(err => {
+                console.error('Ошибка копирования:', err);
+            });
+        }
+
+        function toggleIpBlur(el) {
+            const span = el.querySelector('#ip-text');
+            if (span.classList.contains('ip-unblurred')) {
+                span.classList.remove('ip-unblurred');
+                span.classList.add('ip-blurred');
             } else {
-                indicator.style.background = "var(--danger)";
-                indicator.style.boxShadow = "none";
-            }
-            if (port && portEl) {
-                portEl.innerText = port;
+                span.classList.remove('ip-blurred');
+                span.classList.add('ip-unblurred');
             }
         }
 
-        // Initial update and interval
-        updateMetrics();
-        setInterval(updateMetrics, 3000);
+        function openQRModal(value, title) {
+            document.getElementById('qr-modal-title').innerText = title;
+            document.getElementById('qr-modal-value').innerText = value;
+            
+            const canvas = document.getElementById('qr-canvas');
+            if (qrGenerator) {
+                qrGenerator.set({ value: value });
+            } else {
+                qrGenerator = new QRious({
+                    element: canvas,
+                    value: value,
+                    size: 200,
+                    background: '#ffffff',
+                    foreground: '#000000',
+                    level: 'M'
+                });
+            }
+
+            const modal = document.getElementById('qr-modal');
+            const content = document.getElementById('qr-modal-content');
+            modal.classList.remove('hidden');
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            content.classList.remove('scale-95');
+        }
+
+        function closeQRModal() {
+            const modal = document.getElementById('qr-modal');
+            const content = document.getElementById('qr-modal-content');
+            
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function openProtonModal() {
+            const modal = document.getElementById('proton-modal');
+            const content = document.getElementById('proton-modal-content');
+            
+            modal.classList.remove('hidden');
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            content.classList.remove('scale-95');
+        }
+
+        function closeProtonModal() {
+            const modal = document.getElementById('proton-modal');
+            const content = document.getElementById('proton-modal-content');
+            
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        let domainRoutesList = [];
+
+        function openDomainRoutesModal() {
+            const rawVal = document.getElementById('domain_routes').value || '';
+            domainRoutesList = [];
+            
+            rawVal.split('\n').forEach(line => {
+                line = line.trim();
+                if (line === '' || line.startsWith('#')) return;
+                const parts = line.split(':');
+                if (parts.length === 2) {
+                    const dom = parts[0].trim();
+                    const out = parts[1].trim();
+                    if (dom && out) {
+                        domainRoutesList.push({ domain: dom, outbound: out });
+                    }
+                }
+            });
+
+            document.getElementById('modal-search').value = '';
+            document.getElementById('modal-new-domains').value = '';
+            document.getElementById('modal-select-all').checked = false;
+            
+            renderModalTable();
+
+            const modal = document.getElementById('domain-routes-modal');
+            const content = document.getElementById('domain-routes-modal-content');
+            
+            modal.classList.remove('hidden');
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            content.classList.remove('scale-95');
+        }
+
+        function closeDomainRoutesModal() {
+            const modal = document.getElementById('domain-routes-modal');
+            const content = document.getElementById('domain-routes-modal-content');
+            
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function openWarpHelpModal() {
+            const modal = document.getElementById('warp-help-modal');
+            const content = document.getElementById('warp-help-modal-content');
+            modal.classList.remove('hidden');
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            content.classList.remove('scale-95');
+        }
+
+        function closeWarpHelpModal() {
+            const modal = document.getElementById('warp-help-modal');
+            const content = document.getElementById('warp-help-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function openAdvancedWarningModal() {
+            const modal = document.getElementById('advanced-warning-modal');
+            const content = document.getElementById('advanced-warning-modal-content');
+            modal.classList.remove('hidden');
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            content.classList.remove('scale-95');
+        }
+
+        function closeAdvancedWarningModal() {
+            const modal = document.getElementById('advanced-warning-modal');
+            const content = document.getElementById('advanced-warning-modal-content');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function confirmAdvancedMode() {
+            closeAdvancedWarningModal();
+            localStorage.setItem('advanced_routing_mode', 'true');
+            applyRoutingModeUI();
+        }
+
+        function switchToSimpleMode() {
+            if (confirm('Вернуться к стандартному режиму? Расширенные настройки каскадов и доменов перестанут действовать.')) {
+                localStorage.removeItem('advanced_routing_mode');
+                document.getElementById('warp_mode').value = 'global';
+                
+                // Force sync and load
+                initSimpleModeValues();
+                applyRoutingModeUI();
+                
+                const saveBtns = document.querySelectorAll('button[type="submit"]');
+                saveBtns.forEach(btn => {
+                    btn.classList.add('ring-2', 'ring-emerald-500', 'animate-pulse');
+                    setTimeout(() => {
+                        btn.classList.remove('ring-2', 'ring-emerald-500', 'animate-pulse');
+                    }, 5000);
+                });
+            }
+        }
+
+        function applyRoutingModeUI() {
+            const isAdvanced = localStorage.getItem('advanced_routing_mode') === 'true';
+            const simpleDiv = document.getElementById('warp-simple-mode');
+            const advancedDiv = document.getElementById('warp-advanced-mode');
+            
+            if (isAdvanced) {
+                simpleDiv.classList.add('hidden');
+                advancedDiv.classList.remove('hidden');
+                initAdvancedModeValues();
+            } else {
+                simpleDiv.classList.remove('hidden');
+                advancedDiv.classList.add('hidden');
+                initSimpleModeValues();
+            }
+        }
+
+        let simpleRulesURLs = [];
+
+        function renderSimpleListURLs() {
+            const container = document.getElementById('simple-lists-container');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            if (simpleRulesURLs.length === 0) {
+                container.innerHTML = `<span class="text-xs text-zinc-600">Списков пока нет</span>`;
+                return;
+            }
+            
+            simpleRulesURLs.forEach((url, index) => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between py-2 px-3 border border-zinc-800 bg-zinc-950/40 rounded-lg text-xs gap-3";
+                item.innerHTML = `
+                    <span class="font-mono text-zinc-300 truncate max-w-[420px]" title="${url}">${url}</span>
+                    <button type="button" class="text-rose-500 hover:text-rose-400 transition-colors p-1 cursor-pointer font-bold" onclick="deleteSimpleListURL(${index})">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function addSimpleListURL() {
+            const input = document.getElementById('simple-list-url-input');
+            if (!input) return;
+            const urlStr = input.value.trim();
+            if (!urlStr) return;
+            
+            try {
+                new URL(urlStr);
+            } catch (e) {
+                alert('Пожалуйста, введите корректный URL адрес (например: https://example.com/rules.txt)');
+                return;
+            }
+            
+            if (simpleRulesURLs.includes(urlStr)) {
+                alert('Этот список уже добавлен!');
+                return;
+            }
+            
+            simpleRulesURLs.push(urlStr);
+            input.value = '';
+            renderSimpleListURLs();
+            updateHiddenRulesInputs();
+        }
+
+        function deleteSimpleListURL(index) {
+            simpleRulesURLs.splice(index, 1);
+            renderSimpleListURLs();
+            updateHiddenRulesInputs();
+        }
+
+        function updateHiddenRulesInputs() {
+            const simpleSelect = document.getElementById('simple_mode_select');
+            if (!simpleSelect) return;
+            const currentMode = simpleSelect.value;
+            const commaStr = simpleRulesURLs.join(',');
+            
+            if (currentMode === 'domains') {
+                document.getElementById('adv_warp_rules_url').value = commaStr;
+            } else {
+                document.getElementById('adv_direct_rules_url').value = commaStr;
+            }
+        }
+
+        function toggleSimpleModeTextarea(val) {
+            const label = document.getElementById('simple-domains-label');
+            const tip = document.getElementById('simple-domains-tip');
+            const placeholder = document.getElementById('simple-domains-textarea');
+            const modeTip = document.getElementById('simple-mode-tip');
+            
+            if (val === 'global') {
+                label.innerText = 'Сайты-исключения (в обход WARP)';
+                tip.innerText = 'По одному домену на строку. Указанные ресурсы откроются напрямую (без VPN).';
+                placeholder.placeholder = "sberbank.ru\nkinopoisk.ru";
+                modeTip.innerText = 'Все обращения будут направляться через туннель Cloudflare WARP. Вы можете указать исключения ниже.';
+            } else {
+                label.innerText = 'Сайты для направления в WARP';
+                tip.innerText = 'По одному домену на строку. Указанные ресурсы откроются через WARP, остальные - напрямую.';
+                placeholder.placeholder = "instagram.com\nopenai.com";
+                modeTip.innerText = 'Все обращения будут направляться напрямую. Только выбранные сайты пойдут через Cloudflare WARP.';
+            }
+
+            // Sync simple rules URLs list matching mode
+            let rawUrlString = '';
+            if (val === 'domains') {
+                rawUrlString = document.getElementById('adv_warp_rules_url').value;
+                document.getElementById('simple-lists-label').innerText = 'Списки сайтов для WARP (по ссылкам)';
+                document.getElementById('simple-lists-tip').innerText = 'Вставьте ссылку на файл со списком доменов для WARP. Обновляется автоматически каждые 12 часов.';
+            } else {
+                rawUrlString = document.getElementById('adv_direct_rules_url').value;
+                document.getElementById('simple-lists-label').innerText = 'Списки сайтов-исключений (по ссылкам)';
+                document.getElementById('simple-lists-tip').innerText = 'Вставьте ссылку на файл со списком доменов-исключений (напрямую). Обновляется автоматически каждые 12 часов.';
+            }
+            simpleRulesURLs = rawUrlString.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            renderSimpleListURLs();
+        }
+
+        function initSimpleModeValues() {
+            const warpModeVal = document.getElementById('warp_mode').value;
+            const domainRoutesVal = document.getElementById('domain_routes').value || '';
+            
+            const domainsList = [];
+            domainRoutesVal.split('\n').forEach(line => {
+                line = line.trim();
+                if (line === '' || line.startsWith('#')) return;
+                const parts = line.split(':');
+                if (parts.length === 2) {
+                    const dom = parts[0].trim();
+                    const out = parts[1].trim();
+                    if (dom && out) {
+                        domainsList.push({ domain: dom, outbound: out });
+                    }
+                }
+            });
+
+            const simpleSelect = document.getElementById('simple_mode_select');
+            const simpleTextarea = document.getElementById('simple-domains-textarea');
+            
+            if (warpModeVal === 'direct' || warpModeVal === 'domains') {
+                simpleSelect.value = 'domains';
+                const warpDoms = domainsList.filter(d => d.outbound === 'warp').map(d => d.domain);
+                simpleTextarea.value = warpDoms.join('\n');
+            } else {
+                simpleSelect.value = 'global';
+                const directDoms = domainsList.filter(d => d.outbound === 'direct').map(d => d.domain);
+                simpleTextarea.value = directDoms.join('\n');
+            }
+            
+            toggleSimpleModeTextarea(simpleSelect.value);
+
+            const hyCasc = document.getElementById('hysteria_cascade_hidden').value;
+            document.getElementById('simple_hysteria_cascade').value = (hyCasc === 'direct') ? 'direct' : 'warp';
+            
+            const mieCasc = document.getElementById('mieru_cascade_hidden').value;
+            document.getElementById('simple_mieru_cascade').value = (mieCasc === 'direct') ? 'direct' : 'warp';
+            
+            const anyCasc = document.getElementById('anytls_cascade_hidden').value;
+            document.getElementById('simple_anytls_cascade').value = (anyCasc === 'direct') ? 'direct' : 'warp';
+            
+            const naiCasc = document.getElementById('naive_cascade_hidden').value;
+            document.getElementById('simple_naive_cascade').value = (naiCasc === 'direct') ? 'direct' : 'warp';
+        }
+
+        function initAdvancedModeValues() {
+            document.getElementById('warp_mode_adv').value = document.getElementById('warp_mode').value;
+            document.getElementById('adv_hysteria_cascade').value = document.getElementById('hysteria_cascade_hidden').value;
+            document.getElementById('adv_mieru_cascade').value = document.getElementById('mieru_cascade_hidden').value;
+            document.getElementById('adv_anytls_cascade').value = document.getElementById('anytls_cascade_hidden').value;
+            document.getElementById('adv_naive_cascade').value = document.getElementById('naive_cascade_hidden').value;
+        }
+
+        function toggleSimpleSettingsVisibility() {
+            const controls = document.getElementById('simple-settings-controls');
+            if (controls.classList.contains('hidden')) {
+                controls.classList.remove('hidden');
+                controls.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                controls.classList.add('hidden');
+            }
+        }
+
+        function syncFormFields() {
+            const isAdvanced = localStorage.getItem('advanced_routing_mode') === 'true';
+            
+            if (isAdvanced) {
+                document.getElementById('warp_mode').value = document.getElementById('warp_mode_adv').value;
+                document.getElementById('hysteria_cascade_hidden').value = document.getElementById('adv_hysteria_cascade').value;
+                document.getElementById('mieru_cascade_hidden').value = document.getElementById('adv_mieru_cascade').value;
+                document.getElementById('anytls_cascade_hidden').value = document.getElementById('adv_anytls_cascade').value;
+                document.getElementById('naive_cascade_hidden').value = document.getElementById('adv_naive_cascade').value;
+            } else {
+                const simpleMode = document.getElementById('simple_mode_select').value;
+                const textareaVal = document.getElementById('simple-domains-textarea').value || '';
+                const domains = textareaVal.split(/[\s,\n]+/).map(d => d.trim()).filter(d => d !== '');
+                
+                if (simpleMode === 'global') {
+                    document.getElementById('warp_mode').value = 'global';
+                    const routes = domains.map(d => `${d}:direct`).join('\n');
+                    document.getElementById('domain_routes').value = routes;
+                    document.getElementById('warp_list_hidden').value = '';
+                    document.getElementById('direct_list_hidden').value = domains.join('\n');
+                } else {
+                    document.getElementById('warp_mode').value = 'direct';
+                    const routes = domains.map(d => `${d}:warp`).join('\n');
+                    document.getElementById('domain_routes').value = routes;
+                    document.getElementById('warp_list_hidden').value = domains.join('\n');
+                    document.getElementById('direct_list_hidden').value = '';
+                }
+                
+                document.getElementById('hysteria_cascade_hidden').value = document.getElementById('simple_hysteria_cascade').value;
+                document.getElementById('mieru_cascade_hidden').value = document.getElementById('simple_mieru_cascade').value;
+                document.getElementById('anytls_cascade_hidden').value = document.getElementById('simple_anytls_cascade').value;
+                document.getElementById('naive_cascade_hidden').value = document.getElementById('simple_naive_cascade').value;
+            }
+        }
+
+        function renderModalTable() {
+            const tbody = document.getElementById('modal-domains-table-body');
+            const searchVal = document.getElementById('modal-search').value.toLowerCase().trim();
+            const selectAll = document.getElementById('modal-select-all');
+            
+            let html = '';
+            let visibleCount = 0;
+            
+            const protonProfiles = [];
+            {{range .ProtonProfiles}}
+            protonProfiles.push({ id: '{{.ID}}', name: 'Proton: {{.Name}}' });
+            {{end}}
+
+            domainRoutesList.forEach((item, index) => {
+                if (searchVal && !item.domain.toLowerCase().includes(searchVal)) {
+                    return;
+                }
+                visibleCount++;
+
+                let optionsHtml = `
+                    <option value="direct" ${item.outbound === 'direct' ? 'selected' : ''}>Direct</option>
+                    <option value="warp" ${item.outbound === 'warp' ? 'selected' : ''}>WARP</option>
+                    <option value="proton-auto" ${item.outbound === 'proton-auto' ? 'selected' : ''}>Proton (Авто)</option>
+                `;
+                protonProfiles.forEach(p => {
+                    optionsHtml += `<option value="${p.id}" ${item.outbound === p.id ? 'selected' : ''}>${p.name}</option>`;
+                });
+
+                html += `
+                <tr class="hover:bg-zinc-900/30 transition-colors">
+                    <td class="p-3 text-center">
+                        <input type="checkbox" class="modal-domain-checkbox" data-index="${index}">
+                    </td>
+                    <td class="p-3 font-mono text-zinc-300 break-all select-all">${item.domain}</td>
+                    <td class="p-3">
+                        <select class="bg-[#09090b] border border-zinc-800 text-zinc-300 rounded px-2 py-1 text-xs w-full focus:outline-none focus:border-zinc-700" onchange="updateSingleDomainRoute(${index}, this.value)">
+                            ${optionsHtml}
+                        </select>
+                    </td>
+                    <td class="p-3 text-center">
+                        <button type="button" class="text-zinc-500 hover:text-rose-400 transition-colors p-1" onclick="deleteSingleDomain(${index})" title="Удалить">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </td>
+                </tr>`;
+            });
+
+            if (html === '') {
+                html = `
+                <tr>
+                    <td colspan="4" class="p-6 text-center text-zinc-500 italic">
+                        ${searchVal ? 'Совпадений не найдено' : 'Список правил пуст. Добавьте домены выше.'}
+                    </td>
+                </tr>`;
+            }
+
+            tbody.innerHTML = html;
+            document.getElementById('modal-total-count').innerText = `Всего правил: ${domainRoutesList.length}`;
+            selectAll.checked = false;
+        }
+
+        function deleteSingleDomain(index) {
+            domainRoutesList.splice(index, 1);
+            renderModalTable();
+        }
+
+        function addDomainsFromModal() {
+            const input = document.getElementById('modal-new-domains').value || '';
+            const outbound = document.getElementById('modal-new-outbound').value;
+            
+            const domains = input.split(/[\s,\n]+/).map(d => d.trim()).filter(d => d !== '');
+            
+            if (domains.length === 0) return;
+
+            domains.forEach(dom => {
+                const existing = domainRoutesList.find(item => item.domain.toLowerCase() === dom.toLowerCase());
+                if (existing) {
+                    existing.outbound = outbound;
+                } else {
+                    domainRoutesList.push({ domain: dom, outbound: outbound });
+                }
+            });
+
+            document.getElementById('modal-new-domains').value = '';
+            renderModalTable();
+        }
+
+        function updateSingleDomainRoute(index, value) {
+            if (domainRoutesList[index]) {
+                domainRoutesList[index].outbound = value;
+            }
+        }
+
+        function filterModalDomains() {
+            renderModalTable();
+        }
+
+        function toggleAllModalCheckboxes(master) {
+            const checkboxes = document.querySelectorAll('.modal-domain-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = master.checked;
+            });
+        }
+
+        function bulkAssignRoute(outbound) {
+            const checkboxes = document.querySelectorAll('.modal-domain-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('Пожалуйста, выберите хотя бы один домен.');
+                return;
+            }
+            checkboxes.forEach(cb => {
+                const idx = parseInt(cb.getAttribute('data-index'));
+                if (domainRoutesList[idx]) {
+                    domainRoutesList[idx].outbound = outbound;
+                }
+            });
+            renderModalTable();
+        }
+
+        function bulkDeleteDomains() {
+            const checkboxes = document.querySelectorAll('.modal-domain-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('Пожалуйста, выберите хотя бы один домен.');
+                return;
+            }
+            if (!confirm(`Удалить выбранные домены (${checkboxes.length})?`)) return;
+
+            const indexes = Array.from(checkboxes).map(cb => parseInt(cb.getAttribute('data-index'))).sort((a, b) => b - a);
+            indexes.forEach(idx => {
+                domainRoutesList.splice(idx, 1);
+            });
+
+            renderModalTable();
+        }
+
+        function saveDomainRoutesFromModal() {
+            const serialized = domainRoutesList.map(item => `${item.domain}:${item.outbound}`).join('\n');
+            document.getElementById('domain_routes').value = serialized;
+            
+            const warpList = domainRoutesList.filter(item => item.outbound === 'warp').map(item => item.domain).join('\n');
+            const directList = domainRoutesList.filter(item => item.outbound === 'direct').map(item => item.domain).join('\n');
+            
+            document.getElementById('warp_list_hidden').value = warpList;
+            document.getElementById('direct_list_hidden').value = directList;
+            
+            closeDomainRoutesModal();
+            
+            const saveBtns = document.querySelectorAll('button[type="submit"]');
+            saveBtns.forEach(btn => {
+                btn.classList.add('ring-2', 'ring-emerald-500', 'animate-pulse');
+                setTimeout(() => {
+                    btn.classList.remove('ring-2', 'ring-emerald-500', 'animate-pulse');
+                }, 5000);
+            });
+        }
+
+        function showQR(inputId, title) {
+            const val = document.getElementById(inputId).value;
+            openQRModal(val, title);
+        }
+
+        function showServiceQR(protocol) {
+            fetch('/api/protocol-settings')
+                .then(res => res.json())
+                .then(data => {
+                    const protoData = data[protocol];
+                    if (!protoData) return;
+                    
+                    let uri = '';
+                    const domain = window.location.hostname;
+                    
+                    if (protocol === 'Hysteria2') {
+                        const insecure = {{.SkipCertVerify}} ? '1' : '0';
+                        const sni = protoData.sni || domain;
+                        uri = `hysteria2://${protoData.password}@${domain}:${protoData.port}/?insecure=${insecure}&sni=${sni}#Hysteria2`;
+                    } else if (protocol === 'Mieru') {
+                        uri = `mieru://${protoData.username}:${protoData.password}@${domain}:${protoData.port}#Mieru`;
+                    } else if (protocol === 'AnyTLS') {
+                        const sni = protoData.sni || 'images.apple.com';
+                        uri = `anytls://${protoData.password}@${domain}:${protoData.port}/?sni=${sni}&alpn=h2,http/1.1&insecure=1#AnyTLS`;
+                    } else if (protocol === 'NaiveProxy') {
+                        const sni = protoData.sni || domain;
+                        uri = `naive+https://${protoData.username}:${protoData.password}@${domain}:${protoData.port}/?sni=${sni}#NaiveProxy`;
+                    }
+                    
+                    openQRModal(uri, `QR-код для ${protocol}`);
+                })
+                .catch(err => {
+                    alert('Ошибка генерации QR-кода');
+                    console.error(err);
+                });
+        }
+
+        // Tab state recovery on DOM Load
+        window.addEventListener('DOMContentLoaded', () => {
+            const activeTab = localStorage.getItem('active_tab') || 'dashboard';
+            switchTab(activeTab);
+            initCharts();
+            updateMetrics();
+            setInterval(updateMetrics, 3000);
+            applyRoutingModeUI();
+
+            // Intercept form submit to sync simplified views to hidden fields
+            document.getElementById('settings-form').addEventListener('submit', (e) => {
+                syncFormFields();
+            });
+        });
     </script>
+
+    <!-- Protocol Settings Modal -->
+    <div id="protocol-modal" onclick="if(event.target === this) closeProtocolSettings()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-md transform scale-95 transition-transform duration-300 shadow-2xl" id="protocol-modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-zinc-100 tracking-wide" id="protocol-modal-title">Настройки</h3>
+                <button type="button" class="text-zinc-500 hover:text-zinc-300" onclick="closeProtocolSettings()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <input type="hidden" id="protocol-modal-name">
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase tracking-widest text-zinc-500 mb-2">Порт</label>
+                    <div class="relative flex items-center">
+                        <input type="number" id="protocol-modal-port" class="w-full bg-[#050505] border border-zinc-800 rounded pl-3 pr-10 py-2 text-sm text-zinc-300 focus:outline-none focus:border-zinc-600" placeholder="Порт">
+                        <button type="button" onclick="randomizeField('port')" class="absolute right-3 text-zinc-500 hover:text-zinc-300 transition-colors" title="Случайный порт">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"></circle><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="protocol-modal-user-container">
+                    <label class="block text-xs uppercase tracking-widest text-zinc-500 mb-2">Имя пользователя</label>
+                    <div class="relative flex items-center">
+                        <input type="text" id="protocol-modal-user" class="w-full bg-[#050505] border border-zinc-800 rounded pl-3 pr-10 py-2 text-sm text-zinc-300 focus:outline-none focus:border-zinc-600" placeholder="Имя пользователя">
+                        <button type="button" onclick="randomizeField('user')" class="absolute right-3 text-zinc-500 hover:text-zinc-300 transition-colors" title="Случайный логин">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"></circle><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs uppercase tracking-widest text-zinc-500 mb-2" id="protocol-modal-password-label">Пароль / Токен</label>
+                    <div class="relative flex items-center">
+                        <input type="text" id="protocol-modal-password" class="w-full bg-[#050505] border border-zinc-800 rounded pl-3 pr-10 py-2 text-sm text-zinc-300 focus:outline-none focus:border-zinc-600" placeholder="Пароль">
+                        <button type="button" onclick="randomizeField('password')" class="absolute right-3 text-zinc-500 hover:text-zinc-300 transition-colors" title="Случайный пароль">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"></circle><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="protocol-modal-sni-container">
+                    <label class="block text-xs uppercase tracking-widest text-zinc-500 mb-2">Маскировочный SNI</label>
+                    <div class="relative flex items-center">
+                        <input type="text" id="protocol-modal-sni" class="w-full bg-[#050505] border border-zinc-800 rounded pl-3 pr-10 py-2 text-sm text-zinc-300 focus:outline-none focus:border-zinc-600" placeholder="например, images.apple.com">
+                        <button type="button" onclick="randomizeField('sni')" class="absolute right-3 text-zinc-500 hover:text-zinc-300 transition-colors" title="Случайный SNI">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"></circle><circle cx="12" cy="12" r="1.5" fill="currentColor"></circle></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 flex justify-end gap-3">
+                <button type="button" class="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors" onclick="closeProtocolSettings()">Отмена</button>
+                <button type="button" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-semibold rounded text-sm transition-colors" id="protocol-modal-save-btn" onclick="saveProtocolSettings()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qr-modal" onclick="if(event.target === this) closeQRModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-sm transform scale-95 transition-transform duration-300 shadow-2xl" id="qr-modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-semibold text-zinc-100 tracking-wide" id="qr-modal-title">QR Code</h3>
+                <button type="button" class="text-zinc-500 hover:text-zinc-300" onclick="closeQRModal()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="relative group cursor-pointer flex flex-col items-center justify-center bg-white p-4 rounded-lg mx-auto" onclick="copyQRValue()" style="width: 220px; height: 220px;">
+                <canvas id="qr-canvas"></canvas>
+                <div class="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-lg">
+                    <span class="text-zinc-100 text-xs font-semibold select-none flex items-center gap-1.5 bg-[#09090b] border border-zinc-800 px-3 py-1.5 rounded-md shadow-lg">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                        Копировать
+                    </span>
+                </div>
+            </div>
+            
+            <div class="mt-6 text-center">
+                <p class="text-xs text-zinc-500 break-all font-mono cursor-pointer hover:text-zinc-300 transition-colors select-none" id="qr-modal-value" onclick="copyQRValueFromText(this)"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proton Config Modal -->
+    <div id="proton-modal" onclick="if(event.target === this) closeProtonModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300 shadow-2xl" id="proton-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-zinc-100 tracking-wide">Конфигурация Proton VPN</h3>
+                <button type="button" class="text-zinc-500 hover:text-zinc-300" onclick="closeProtonModal()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <p class="text-xs text-zinc-500 mb-4">Вставьте содержимое одного или нескольких WireGuard файлов конфигурации (.conf), полученных с сайта Proton VPN.</p>
+            
+            <form action="/save-settings" method="POST">
+                <div class="settings-group">
+                    <textarea class="premium-input font-mono w-full" name="proton_config" rows="12" placeholder="[Interface]&#10;PrivateKey = ...&#10;Address = ...&#10;&#10;[Peer]&#10;PublicKey = ...&#10;Endpoint = ..." style="font-size: 11px; line-height: 1.5; min-height: 250px; background-color: #09090b; border-color: #27272a; color: #e4e4e7;">{{.ProtonConfig}}</textarea>
+                </div>
+                
+                <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-zinc-800/80">
+                    <button type="button" class="px-4 py-2 text-xs text-zinc-400 hover:text-zinc-200 transition-colors font-semibold" onclick="closeProtonModal()">Отмена</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-semibold rounded-lg text-xs transition-colors">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Domain Routes Modal -->
+    <div id="domain-routes-modal" onclick="if(event.target === this) closeDomainRoutesModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-2xl transform scale-95 transition-transform duration-300 shadow-2xl flex flex-col max-h-[90vh]" id="domain-routes-modal-content">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-zinc-800/80">
+                <div>
+                    <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-100">Маршрутизация доменов</h3>
+                    <p class="text-[10px] text-zinc-500 mt-1">Укажите индивидуальные пути обхода для конкретных доменов или групп.</p>
+                </div>
+                <button type="button" class="text-zinc-500 hover:text-zinc-300" onclick="closeDomainRoutesModal()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="flex gap-2 items-end mb-5 mt-2">
+                <div class="flex-1 flex flex-col">
+                    <textarea id="modal-new-domains" class="premium-input font-mono !mt-0 text-xs w-full resize-none py-1.5" rows="2" placeholder="Добавить домены (по одному на строку или через запятую)" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7; height: 48px; min-height: 48px;"></textarea>
+                </div>
+                <select id="modal-new-outbound" class="select-input !mt-0 !h-9 !py-1 text-xs w-36" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7; margin-bottom: 0;">
+                    <option value="direct">Direct</option>
+                    <option value="warp" selected>WARP</option>
+                    <option value="proton-auto">Proton (Авто)</option>
+                    {{range .ProtonProfiles}}
+                    <option value="{{.ID}}">Proton: {{.Name}}</option>
+                    {{end}}
+                </select>
+                <button type="button" class="bg-emerald-600 hover:bg-emerald-500 text-zinc-100 px-4 h-9 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap" onclick="addDomainsFromModal()">+</button>
+            </div>
+            
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3 border-b border-zinc-900">
+                <input type="text" id="modal-search" class="premium-input font-mono !mt-0 !h-8 !w-44 text-[11px]" placeholder="Поиск по списку..." oninput="filterModalDomains()" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7;">
+                
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[10px] text-zinc-500 mr-1 select-none">Для выбранных:</span>
+                    <button type="button" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded text-[10px] transition-colors" onclick="bulkAssignRoute('direct')">Direct</button>
+                    <button type="button" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded text-[10px] transition-colors" onclick="bulkAssignRoute('warp')">WARP</button>
+                    <button type="button" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded text-[10px] transition-colors" onclick="bulkAssignRoute('proton-auto')">Proton (Авто)</button>
+                    {{range .ProtonProfiles}}
+                    <button type="button" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded text-[10px] transition-colors" onclick="bulkAssignRoute('{{.ID}}')">{{.Name}}</button>
+                    {{end}}
+                    <button type="button" class="bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/50 text-rose-300 px-2 py-1 rounded text-[10px] transition-colors ml-1" onclick="bulkDeleteDomains()">Удалить</button>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto border border-zinc-900 rounded-lg max-h-[30vh]">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-zinc-800/80 bg-[#050505]/60 text-[10px] uppercase text-zinc-500 tracking-wider">
+                            <th class="p-3 w-10 text-center">
+                                <input type="checkbox" id="modal-select-all" onclick="toggleAllModalCheckboxes(this)">
+                            </th>
+                            <th class="p-3">Домен</th>
+                            <th class="p-3 w-40">Маршрут</th>
+                            <th class="p-3 w-10 text-center"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-domains-table-body" class="text-xs text-zinc-300 divide-y divide-zinc-900">
+                        <!-- Populated dynamically via JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-6 flex justify-between items-center pt-4 border-t border-zinc-800/80">
+                <span class="text-[10px] text-zinc-500" id="modal-total-count">Всего правил: 0</span>
+                <div class="flex gap-3">
+                    <button type="button" class="px-4 py-2 text-xs text-zinc-400 hover:text-zinc-200 transition-colors font-semibold" onclick="closeDomainRoutesModal()">Отмена</button>
+                    <button type="button" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-semibold rounded-lg text-xs transition-colors" onclick="saveDomainRoutesFromModal()">Сохранить маршруты</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal for WARP & Proton -->
+    <div id="warp-help-modal" onclick="if(event.target === this) closeWarpHelpModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300 shadow-2xl flex flex-col" id="warp-help-modal-content">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-zinc-800/80">
+                <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
+                    <span>💡</span> Как это устроено?
+                </h3>
+                <button type="button" class="text-zinc-500 hover:text-zinc-300" onclick="closeWarpHelpModal()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="text-xs text-zinc-400 space-y-4 leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
+                <div>
+                    <h4 class="font-bold text-zinc-200 mb-1">1. Основной исходящий маршрут (Default Route)</h4>
+                    <p>Это путь, по которому сервер будет отправлять <strong>весь обычный трафик</strong> по умолчанию. Вы можете выбрать:</p>
+                    <ul class="list-disc list-inside mt-1 ml-2 space-y-1 text-zinc-500">
+                        <li><span class="text-zinc-300">Напрямую (IP сервера)</span> — без туннелирования.</li>
+                        <li><span class="text-zinc-300">Cloudflare WARP</span> — через сеть Cloudflare для смены внешнего IP сервера.</li>
+                        <li><span class="text-zinc-300">Proton VPN</span> — через выбранный или автоматический сервер Proton.</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold text-zinc-200 mb-1">2. Персональные маршруты доменов</h4>
+                    <p>Нажмите <strong>«Настроить маршруты доменов»</strong>, чтобы переопределить путь для конкретных сайтов. Например:</p>
+                    <ul class="list-disc list-inside mt-1 ml-2 space-y-1 text-zinc-500">
+                        <li>Пустить все сайты через <strong>WARP</strong>, но для <code>instagram.com</code> задать маршрут через <strong>Proton VPN</strong>.</li>
+                        <li>Пустить все сайты через <strong>Proton</strong>, но российские ресурсы направить напрямую через <strong>Напрямую (IP сервера)</strong>.</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold text-zinc-200 mb-1">3. Каскадирование служб (Исходящие каналы)</h4>
+                    <p>Это настройка для трафика, который пользователи отправляют на ваш сервер через Hysteria, Mieru и др. Каждую службу можно завернуть в свой каскад (WARP или Proton), независимо от настроек основного маршрута.</p>
+                </div>
+
+                <div class="bg-zinc-950/40 border border-zinc-900 rounded-lg p-3 text-[11px] text-zinc-500">
+                    <span class="text-emerald-500 font-semibold">💡 Подсказка:</span> После изменения любых правил маршрутизации не забудьте нажать зеленую кнопку <strong>«Применить настройки»</strong> внизу страницы, чтобы сервер обновил конфигурацию Sing-Box.
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end pt-4 border-t border-zinc-800/80">
+                <button type="button" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-semibold rounded-lg text-xs transition-colors cursor-pointer" onclick="closeWarpHelpModal()">Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Mode Warning Modal -->
+    <div id="advanced-warning-modal" onclick="if(event.target === this) closeAdvancedWarningModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300 shadow-2xl flex flex-col" id="advanced-warning-modal-content">
+            <div class="flex justify-between items-center mb-5 pb-3 border-b border-zinc-800/80">
+                <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
+                    <span>⚡</span> Расширенный режим
+                </h3>
+                <button type="button" class="text-zinc-500 hover:text-zinc-300 cursor-pointer" onclick="closeAdvancedWarningModal()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="text-sm text-zinc-400 space-y-4 leading-relaxed">
+                <p>
+                    В этом режиме можно подключить <span class="text-zinc-200 font-semibold">Proton VPN</span> или <span class="text-zinc-200 font-semibold">Amnezia</span>, настроить цепочки обхода (каскад) и персональные маршруты для сайтов.
+                </p>
+                <p class="font-bold text-zinc-200 text-base">
+                    Настройки нужны только если вы точно понимаете, зачем они вам.
+                </p>
+                <p>
+                    Для обычной работы стандартного режима (когда всё идёт через WARP) хватает с головой — это самый быстрый и стабильный вариант.
+                </p>
+                <p class="text-zinc-300 font-semibold text-base pt-2 text-center">
+                    Вернуться в обычные настройки?
+                </p>
+            </div>
+            
+            <div class="mt-8 flex items-center justify-between gap-4 pt-5 border-t border-zinc-800/80">
+                <button type="button" class="px-4 py-2.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors font-semibold cursor-pointer" onclick="confirmAdvancedMode()">
+                    Всё равно перейти
+                </button>
+                <button type="button" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-bold rounded-lg text-xs transition-colors cursor-pointer" onclick="closeAdvancedWarningModal()">
+                    ◀️ В обычные настройки
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
+

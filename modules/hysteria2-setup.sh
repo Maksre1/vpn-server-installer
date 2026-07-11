@@ -47,8 +47,7 @@ tls:
   key: $KEY_PATH
 auth:
   type: password
-  password:
-    - "$PASSWORD"
+  password: "$PASSWORD"
 masquerade:
   type: proxy
   proxy:

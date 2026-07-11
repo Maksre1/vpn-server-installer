@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"embed"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -14,10 +15,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+	"sort"
 
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v3"
@@ -47,12 +50,46 @@ type Config struct {
 	KeyPath          string `json:"key_path"`
 	DirectList       string `json:"direct_list"`
 	WarpList         string `json:"warp_list"`
+	WarpMode         string `json:"warp_mode"`
+	WarpRulesURL     string `json:"warp_rules_url"`
+	DirectRulesURL   string `json:"direct_rules_url"`
+	DNSProxy         string `json:"dns_proxy"`
+	DNSDirect        string `json:"dns_direct"`
+	CustomDNSProxy   string `json:"custom_dns_proxy"`
+	CustomDNSDirect  string `json:"custom_dns_direct"`
+	HysteriaSNI      string `json:"hysteria_sni"`
+	AnyTLSSNI        string `json:"anytls_sni"`
+	NaiveSNI         string `json:"naive_sni"`
+	WarpLicenseKey   string `json:"warp_license_key"`
+	AdminUser        string `json:"admin_user"`
+	ProtonConfig     string          `json:"proton_config"`
+	ProtonProfiles   []ProtonProfile `json:"proton_profiles"`
+	ProtonStrategy   string          `json:"proton_strategy"`
+	ProtonFallback   string          `json:"proton_fallback"`
+	HysteriaCascade  string          `json:"hysteria_cascade"`
+	MieruCascade     string          `json:"mieru_cascade"`
+	AnyTLSCascade    string          `json:"anytls_cascade"`
+	NaiveCascade     string          `json:"naive_cascade"`
+	DomainRoutes     string          `json:"domain_routes"`
 }
 
-type TrafficRecord struct {
+
+type ProtonProfile struct {
+	ID         string   `json:"id"`
+	Name       string   `json:"name"`
+	PrivateKey string   `json:"private_key"`
+	Addresses  []string `json:"addresses"`
+	PublicKey  string   `json:"public_key"`
+	Endpoint   string   `json:"endpoint"`
+	Port       int      `json:"port"`
+}
+
+type SystemMetricRecord struct {
 	Time string
 	Rx   float64
 	Tx   float64
+	CPU  float64
+	RAM  float64
 }
 
 // Global state
@@ -64,9 +101,9 @@ var (
 	sessions     = make(map[string]time.Time)
 	sessionsMu   sync.Mutex
 	rateLimit    = make(map[string]*loginTracker)
-	rateLimitMu  sync.Mutex
-	trafficHistory []TrafficRecord
-	historyMu    sync.Mutex
+	rateLimitMu    sync.Mutex
+	metricsHistory []SystemMetricRecord
+	historyMu      sync.Mutex
 )
 
 type loginTracker struct {
@@ -118,10 +155,19 @@ type HistoryData struct {
 	Labels   []string  `json:"Labels"`
 	InRates  []float64 `json:"InRates"`
 	OutRates []float64 `json:"OutRates"`
+	CPURates []float64 `json:"CPURates"`
+	RAMRates []float64 `json:"RAMRates"`
 }
 
 func main() {
 	loadConfig()
+
+	// Ensure subscriptions are pre-generated on startup
+	go func() {
+		time.Sleep(2 * time.Second)
+		pregenerateSubscriptions()
+	}()
+
 
 	// Ensure config directory exists
 	os.MkdirAll(filepath.Dir(configPath), 0755)
@@ -135,6 +181,10 @@ func main() {
 	// Start traffic historical rate collector
 	go startTrafficCollector()
 
+	// Start background direct rules updater (Github/fallback sync)
+	go startDirectRulesUpdater()
+	go startWarpRulesUpdater()
+
 	// Start clean up session goroutine
 	go startSessionCleaner()
 
@@ -146,9 +196,27 @@ func main() {
 	http.HandleFunc("/change-password", handleChangePassword)
 	http.HandleFunc("/save-settings", handleSaveSettings)
 	http.HandleFunc("/api/metrics", handleAPIMetrics)
+	http.HandleFunc("/api/update-panel", handleUpdatePanel)
+	http.HandleFunc("/api/protocol-settings", handleGetProtocolSettings)
+	http.HandleFunc("/api/save-protocol-settings", handleSaveProtocolSettings)
 	http.HandleFunc("/sub/clash/", handleSubClash)
 	http.HandleFunc("/sub/singbox/", handleSubSingbox)
+	http.HandleFunc("/sub/universal/", handleSubUniversal)
 	http.HandleFunc("/", handleIndex)
+
+	// Start HTTP listener for subscription endpoints on Port + 1 (to bypass self-signed cert errors in strict clients)
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/sub/clash/", handleSubClash)
+		mux.HandleFunc("/sub/singbox/", handleSubSingbox)
+		mux.HandleFunc("/sub/universal/", handleSubUniversal)
+		// Redirect root to HTTPS UI
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, fmt.Sprintf("https://%s:%d/", cfg.Domain, cfg.Port), http.StatusFound)
+		})
+		log.Printf("HTTP Subscription server listening on :%d\n", cfg.Port+1)
+		http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port+1), mux)
+	}()
 
 	log.Printf("Server listening on :%d\n", cfg.Port)
 	if cfg.CertPath != "" && cfg.KeyPath != "" {
@@ -170,6 +238,241 @@ func secureRandomHex(n int) string {
 		log.Fatal(err)
 	}
 	return hex.EncodeToString(bytes)
+}
+
+func parseMultipleWireGuardConfigs(configText string) []ProtonProfile {
+	var profiles []ProtonProfile
+	var currentBlock []string
+	lines := strings.Split(configText, "\n")
+	
+	saveCurrentBlock := func() {
+		if len(currentBlock) == 0 {
+			return
+		}
+		privKey, addrs, pubKey, ep, port, name, err := parseSingleWireGuardConfig(strings.Join(currentBlock, "\n"))
+		if err == nil {
+			idx := len(profiles) + 1
+			id := fmt.Sprintf("proton-%d", idx)
+			if name == "" {
+				name = fmt.Sprintf("Proton #%d (%s)", idx, ep)
+			}
+			profiles = append(profiles, ProtonProfile{
+				ID:         id,
+				Name:       name,
+				PrivateKey: privKey,
+				Addresses:  addrs,
+				PublicKey:  pubKey,
+				Endpoint:   ep,
+				Port:       port,
+			})
+		}
+		currentBlock = nil
+	}
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(strings.ToLower(trimmed), "[interface]") {
+			saveCurrentBlock()
+		}
+		currentBlock = append(currentBlock, line)
+	}
+	saveCurrentBlock()
+	return profiles
+}
+
+func parseSingleWireGuardConfig(configText string) (privateKey string, addresses []string, publicKey string, endpoint string, port int, name string, err error) {
+	lines := strings.Split(configText, "\n")
+	var currentSection string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			comment := strings.TrimSpace(strings.TrimLeft(line, "#;"))
+			commentLower := strings.ToLower(comment)
+			if name == "" && comment != "" && !strings.Contains(commentLower, "protonvpn") && !strings.Contains(commentLower, "wireguard") && len(comment) < 40 {
+				name = comment
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+			currentSection = strings.ToLower(line[1 : len(line)-1])
+			continue
+		}
+
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(strings.ToLower(parts[0]))
+		val := strings.TrimSpace(parts[1])
+
+		if currentSection == "interface" {
+			if key == "privatekey" {
+				privateKey = val
+			} else if key == "address" {
+				addrParts := strings.Split(val, ",")
+				for _, addr := range addrParts {
+					addresses = append(addresses, strings.TrimSpace(addr))
+				}
+			}
+		} else if currentSection == "peer" {
+			if key == "publickey" {
+				publicKey = val
+			} else if key == "endpoint" {
+				host, portStr, splitErr := net.SplitHostPort(val)
+				if splitErr == nil {
+					endpoint = host
+					if p, errConv := strconv.Atoi(portStr); errConv == nil {
+						port = p
+					}
+				} else {
+					endpoint = val
+					port = 51820
+				}
+			}
+		}
+	}
+	if privateKey == "" || publicKey == "" || endpoint == "" || len(addresses) == 0 {
+		return "", nil, "", "", 0, "", fmt.Errorf("invalid config")
+	}
+	return privateKey, addresses, publicKey, endpoint, port, name, nil
+}
+
+var (
+	directDomainsFromGithub   []string
+	directDomainsFromGithubMu sync.RWMutex
+	directRulesCachePath      = "/etc/vpn-protocols/direct-rules-cache.json"
+)
+
+func loadDirectRulesCache() {
+	directDomainsFromGithubMu.Lock()
+	defer directDomainsFromGithubMu.Unlock()
+
+	data, err := os.ReadFile(directRulesCachePath)
+	if err != nil {
+		fallbackData, errFallback := os.ReadFile("/opt/vpn-panel/lists/outside-clashx.yaml")
+		if errFallback == nil {
+			directDomainsFromGithub = parseClashRules(fallbackData)
+			log.Printf("Loaded %d direct domains from fallback outside-clashx.yaml\n", len(directDomainsFromGithub))
+		}
+		return
+	}
+	if err := json.Unmarshal(data, &directDomainsFromGithub); err != nil {
+		log.Println("Error unmarshaling direct rules cache:", err)
+	} else {
+		log.Printf("Loaded %d direct domains from cache\n", len(directDomainsFromGithub))
+	}
+}
+
+func parseClashRules(data []byte) []string {
+	var payload struct {
+		Payload []string `yaml:"payload"`
+	}
+	if err := yaml.Unmarshal(data, &payload); err != nil {
+		log.Println("Error parsing Clash rules YAML:", err)
+		return nil
+	}
+	var domains []string
+	for _, rule := range payload.Payload {
+		parts := strings.Split(rule, ",")
+		if len(parts) >= 2 {
+			domain := strings.TrimSpace(parts[1])
+			domain = strings.Trim(domain, `'"`)
+			domains = append(domains, domain)
+		}
+	}
+	return domains
+}
+
+func updateDirectRules() {
+	cfgMu.RLock()
+	url := cfg.DirectRulesURL
+	cfgMu.RUnlock()
+
+	if url == "" {
+		url = "https://raw.githubusercontent.com/Maksre1/clash-rules/main/outside-clashx.yaml"
+	}
+
+	urls := strings.Split(url, ",")
+	var mergedDomains []string
+	client := &http.Client{Timeout: 10 * time.Second}
+	downloadedAny := false
+
+	for _, urlStr := range urls {
+		urlStr = strings.TrimSpace(urlStr)
+		if urlStr == "" {
+			continue
+		}
+		log.Println("Fetching direct rules from URL:", urlStr)
+		resp, err := client.Get(urlStr)
+		if err == nil {
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				if bodyBytes, readErr := io.ReadAll(resp.Body); readErr == nil {
+					domains := parseClashRules(bodyBytes)
+					if len(domains) > 0 {
+						mergedDomains = append(mergedDomains, domains...)
+						downloadedAny = true
+					}
+				}
+			}
+		} else {
+			log.Println("Failed to fetch direct rules from URL:", urlStr, err)
+		}
+	}
+
+	if !downloadedAny {
+		log.Println("Failed to fetch direct rules from GitHub, trying local fallback...")
+		bodyBytes, errFallback := os.ReadFile("/opt/vpn-panel/lists/outside-clashx.yaml")
+		if errFallback == nil {
+			mergedDomains = parseClashRules(bodyBytes)
+		} else {
+			log.Println("Error reading fallback outside-clashx.yaml:", errFallback)
+			return
+		}
+	}
+
+	domains := uniqueStrings(mergedDomains)
+	if len(domains) > 0 {
+		directDomainsFromGithubMu.Lock()
+		directDomainsFromGithub = domains
+		directDomainsFromGithubMu.Unlock()
+
+		cacheData, errMarshal := json.MarshalIndent(domains, "", "  ")
+		if errMarshal == nil {
+			os.WriteFile(directRulesCachePath, cacheData, 0644)
+		}
+		log.Printf("Successfully updated %d direct domains from GitHub/fallback\n", len(domains))
+
+		go applyRoutingChanges()
+	}
+}
+
+func startDirectRulesUpdater() {
+	loadDirectRulesCache()
+	go func() {
+		time.Sleep(5 * time.Second)
+		updateDirectRules()
+	}()
+
+	ticker := time.NewTicker(6 * time.Hour)
+	go func() {
+		for range ticker.C {
+			updateDirectRules()
+		}
+	}()
+}
+
+func startWarpRulesUpdater() {
+	ticker := time.NewTicker(12 * time.Hour)
+	go func() {
+		for range ticker.C {
+			log.Println("Periodic 12-hour update of WARP domain lists starting...")
+			applyRoutingChanges()
+		}
+	}()
 }
 
 func loadConfig() {
@@ -194,6 +497,28 @@ func loadConfig() {
 
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		log.Println("Error unmarshaling config, using defaults:", err)
+	}
+
+	if cfg.WarpMode == "" {
+		cfg.WarpMode = "global"
+	}
+	if cfg.DirectRulesURL == "" {
+		cfg.DirectRulesURL = "https://raw.githubusercontent.com/Maksre1/clash-rules/main/outside-clashx.yaml"
+	}
+	if cfg.DNSProxy == "" {
+		cfg.DNSProxy = "cloudflare"
+	}
+	if cfg.DNSDirect == "" {
+		cfg.DNSDirect = "cloudflare"
+	}
+	if cfg.CertPath == "" {
+		cfg.CertPath = "/etc/vpn-protocols/certs/cert.pem"
+	}
+	if cfg.KeyPath == "" {
+		cfg.KeyPath = "/etc/vpn-protocols/certs/key.pem"
+	}
+	if cfg.AdminUser == "" {
+		cfg.AdminUser = "admin"
 	}
 }
 
@@ -379,15 +704,37 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	cfgMu.RLock()
 	data := map[string]interface{}{
-		"ServerIP":   cfg.ServerIP,
-		"Domain":     cfg.Domain,
-		"Port":       cfg.Port,
-		"Token":      cfg.Token,
-		"WarpGlobal": cfg.WarpGlobal,
-		"DirectList": cfg.DirectList,
-		"WarpList":   cfg.WarpList,
-		"Virt":       getVirtualization(),
-		"Arch":       getArchitecture(),
+		"ServerIP":        cfg.ServerIP,
+		"Domain":          cfg.Domain,
+		"Port":            cfg.Port,
+		"HTTPPort":        cfg.Port + 1,
+		"Token":           cfg.Token,
+		"WarpGlobal":      cfg.WarpGlobal,
+		"DirectList":      cfg.DirectList,
+		"WarpList":        cfg.WarpList,
+		"WarpMode":        cfg.WarpMode,
+		"WarpRulesURL":    cfg.WarpRulesURL,
+		"DirectRulesURL":  cfg.DirectRulesURL,
+		"DNSProxy":        cfg.DNSProxy,
+		"DNSDirect":       cfg.DNSDirect,
+		"CustomDNSProxy":  cfg.CustomDNSProxy,
+		"CustomDNSDirect": cfg.CustomDNSDirect,
+		"WarpLicenseKey":  cfg.WarpLicenseKey,
+		"AdminUser":       cfg.AdminUser,
+		"CertPath":        cfg.CertPath,
+		"KeyPath":         cfg.KeyPath,
+		"SkipCertVerify":  cfg.SkipCertVerify,
+		"ProtonConfig":    cfg.ProtonConfig,
+		"ProtonProfiles":  cfg.ProtonProfiles,
+		"ProtonStrategy":  cfg.ProtonStrategy,
+		"ProtonFallback":  cfg.ProtonFallback,
+		"HysteriaCascade": cfg.HysteriaCascade,
+		"MieruCascade":     cfg.MieruCascade,
+		"AnyTLSCascade":    cfg.AnyTLSCascade,
+		"NaiveCascade":     cfg.NaiveCascade,
+		"DomainRoutes":    cfg.DomainRoutes,
+		"Virt":            getVirtualization(),
+		"Arch":            getArchitecture(),
 	}
 	cfgMu.RUnlock()
 
@@ -422,11 +769,15 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	cfgMu.RLock()
+	expectedUser := cfg.AdminUser
+	if expectedUser == "" {
+		expectedUser = "admin"
+	}
 	expectedHash := cfg.PasswordHash
 	cfgMu.RUnlock()
 
 	err := bcrypt.CompareHashAndPassword([]byte(expectedHash), []byte(password))
-	if username == "admin" && err == nil {
+	if username == expectedUser && err == nil {
 		recordSuccessfulLogin(ip)
 		logAuthEvent(ip, username, "LOGIN_SUCCESS")
 		createSession(w)
@@ -462,6 +813,11 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleResetPassword(w http.ResponseWriter, r *http.Request) {
+	if !checkSession(r) {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
 	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 	cfgMu.RLock()
 	isFirst := cfg.IsFirstLogin
@@ -514,6 +870,7 @@ func handleChangePassword(w http.ResponseWriter, r *http.Request) {
 	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 	oldPass := r.FormValue("old_password")
 	newPass := r.FormValue("new_password")
+	adminUser := r.FormValue("admin_user")
 
 	cfgMu.RLock()
 	expectedHash := cfg.PasswordHash
@@ -525,18 +882,23 @@ func handleChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(newPass) < 8 {
-		http.Error(w, "Пароль слишком короткий", http.StatusBadRequest)
-		return
-	}
-
-	hash, _ := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
 	cfgMu.Lock()
-	cfg.PasswordHash = string(hash)
+	if adminUser != "" {
+		cfg.AdminUser = adminUser
+	}
+	if newPass != "" {
+		if len(newPass) < 8 {
+			cfgMu.Unlock()
+			http.Error(w, "Пароль слишком короткий (минимум 8 символов)", http.StatusBadRequest)
+			return
+		}
+		hash, _ := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
+		cfg.PasswordHash = string(hash)
+	}
 	cfgMu.Unlock()
 
 	saveConfig()
-	logAuthEvent(ip, "admin", "PASSWORD_CHANGED")
+	logAuthEvent(ip, "admin", "CREDENTIALS_CHANGED")
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -546,30 +908,150 @@ func handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	warpGlobal := r.FormValue("warp_global") == "on"
-	directList := r.FormValue("direct_list")
-	warpList := r.FormValue("warp_list")
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
 
 	cfgMu.Lock()
-	cfg.WarpGlobal = warpGlobal
-	cfg.DirectList = directList
-	cfg.WarpList = warpList
+	if r.Form["warp_global"] != nil {
+		cfg.WarpGlobal = r.FormValue("warp_global") == "on"
+	}
+	if r.Form["direct_list"] != nil {
+		cfg.DirectList = r.FormValue("direct_list")
+	}
+	if r.Form["warp_list"] != nil {
+		cfg.WarpList = r.FormValue("warp_list")
+	}
+	if r.Form["warp_mode"] != nil {
+		cfg.WarpMode = r.FormValue("warp_mode")
+	}
+	if r.Form["warp_rules_url"] != nil {
+		cfg.WarpRulesURL = r.FormValue("warp_rules_url")
+	}
+	if r.Form["direct_rules_url"] != nil {
+		cfg.DirectRulesURL = r.FormValue("direct_rules_url")
+	}
+	if r.Form["dns_proxy"] != nil {
+		cfg.DNSProxy = r.FormValue("dns_proxy")
+	}
+	if r.Form["dns_direct"] != nil {
+		cfg.DNSDirect = r.FormValue("dns_direct")
+	}
+	if r.Form["custom_dns_proxy"] != nil {
+		cfg.CustomDNSProxy = r.FormValue("custom_dns_proxy")
+	}
+	if r.Form["custom_dns_direct"] != nil {
+		cfg.CustomDNSDirect = r.FormValue("custom_dns_direct")
+	}
+	if r.Form["proton_config"] != nil {
+		protonConfig := r.FormValue("proton_config")
+		cfg.ProtonConfig = protonConfig
+		cfg.ProtonProfiles = parseMultipleWireGuardConfigs(protonConfig)
+	}
+	if r.Form["proton_strategy"] != nil {
+		cfg.ProtonStrategy = r.FormValue("proton_strategy")
+	}
+	if r.Form["proton_fallback"] != nil {
+		cfg.ProtonFallback = r.FormValue("proton_fallback")
+	}
+	if r.Form["hysteria_cascade"] != nil {
+		cfg.HysteriaCascade = r.FormValue("hysteria_cascade")
+	}
+	if r.Form["mieru_cascade"] != nil {
+		cfg.MieruCascade = r.FormValue("mieru_cascade")
+	}
+	if r.Form["anytls_cascade"] != nil {
+		cfg.AnyTLSCascade = r.FormValue("anytls_cascade")
+	}
+	if r.Form["naive_cascade"] != nil {
+		cfg.NaiveCascade = r.FormValue("naive_cascade")
+	}
+	if r.Form["domain_routes"] != nil {
+		cfg.DomainRoutes = r.FormValue("domain_routes")
+	}
+
+	domainChanged := false
+	certPathsChanged := false
+
+	if r.Form["domain"] != nil {
+		domain := r.FormValue("domain")
+		if domain != "" && cfg.Domain != domain {
+			cfg.Domain = domain
+			domainChanged = true
+		}
+	}
+	if r.Form["admin_user"] != nil {
+		adminUser := r.FormValue("admin_user")
+		if adminUser != "" {
+			cfg.AdminUser = adminUser
+		}
+	}
+	if r.Form["cert_path"] != nil || r.Form["key_path"] != nil {
+		certPath := r.FormValue("cert_path")
+		keyPath := r.FormValue("key_path")
+		if certPath != "" && keyPath != "" && (cfg.CertPath != certPath || cfg.KeyPath != keyPath) {
+			cfg.CertPath = certPath
+			cfg.KeyPath = keyPath
+			certPathsChanged = true
+		}
+	}
+	if r.Form["skip_cert_verify"] != nil {
+		cfg.SkipCertVerify = r.FormValue("skip_cert_verify") == "on"
+	} else {
+		if r.Form["domain"] != nil || r.Form["cert_path"] != nil {
+			cfg.SkipCertVerify = false
+		}
+	}
 	cfgMu.Unlock()
 
 	saveConfig()
 
-	// Update local routing settings in sing-box
+	if certPathsChanged || domainChanged {
+		log.Println("SSL / Domain settings changed, recreating configs...")
+		cfgMu.RLock()
+		hyContent := fmt.Sprintf("listen: :%d\ntls:\n  cert: %s\n  key: %s\nauth:\n  type: password\n  password: \"%s\"\n", cfg.HysteriaPort, cfg.CertPath, cfg.KeyPath, cfg.HysteriaPassword)
+		os.WriteFile("/etc/vpn-protocols/hysteria2.yaml", []byte(hyContent), 0644)
+		go exec.Command("systemctl", "restart", "hysteria2").Run()
+
+		caddyContent := fmt.Sprintf(`:%d {
+    tls "%s" "%s"
+    forward_proxy {
+        basic_auth "%s" "%s"
+        hide_ip
+        hide_via
+        probe_resistance
+    }
+}
+`, cfg.NaivePort, cfg.CertPath, cfg.KeyPath, cfg.NaiveUser, cfg.NaivePassword)
+		os.WriteFile("/etc/vpn-protocols/Caddyfile", []byte(caddyContent), 0644)
+		go exec.Command("systemctl", "restart", "caddy").Run()
+		cfgMu.RUnlock()
+	}
+
 	go applyRoutingChanges()
 
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func applyRoutingChanges() {
-	// Rebuild sing-box server routing rules
-	// Write new configuration and reload/restart the routing service (sing-box)
-	// We will implement this dynamically inside panel script trigger
-	cmd := exec.Command("/opt/vpn-panel/apply-routing.sh")
-	cmd.Run()
+	log.Println("Applying routing changes natively...")
+	if err := generateSingboxServerConfig(); err != nil {
+		log.Println("Error generating singbox-server config:", err)
+	}
+
+	// Restart singbox-server via systemctl
+	cmd := exec.Command("systemctl", "restart", "singbox-server")
+	if err := cmd.Run(); err != nil {
+		log.Println("Error restarting singbox-server service:", err)
+	} else {
+		log.Println("Restarted singbox-server successfully")
+	}
+
+	// Pregenerate static subscriptions
+	if err := pregenerateSubscriptions(); err != nil {
+		log.Println("Error pregenerating subscriptions:", err)
+	}
 }
 
 // Metrics implementation (Parsing linux virtual filesystem files)
@@ -605,10 +1087,14 @@ func handleAPIMetrics(w http.ResponseWriter, r *http.Request) {
 	var labels []string
 	var inRates []float64
 	var outRates []float64
-	for _, rec := range trafficHistory {
+	var cpuRates []float64
+	var ramRates []float64
+	for _, rec := range metricsHistory {
 		labels = append(labels, rec.Time)
 		inRates = append(inRates, rec.Rx)
 		outRates = append(outRates, rec.Tx)
+		cpuRates = append(cpuRates, rec.CPU)
+		ramRates = append(ramRates, rec.RAM)
 	}
 	historyMu.Unlock()
 
@@ -632,6 +1118,8 @@ func handleAPIMetrics(w http.ResponseWriter, r *http.Request) {
 			Labels:   labels,
 			InRates:  inRates,
 			OutRates: outRates,
+			CPURates: cpuRates,
+			RAMRates: ramRates,
 		},
 	}
 
@@ -869,22 +1357,25 @@ func getPortTraffic(port int) uint64 {
 }
 
 func getWARPStatus() WarpInfo {
-	// Check if Wireguard interface wgcf exists
-	_, err := os.Stat("/sys/class/net/wgcf")
-	active := (err == nil)
+	// Check if warp-credentials.json exists
+	if _, err := os.Stat("/etc/vpn-protocols/warp-credentials.json"); err != nil {
+		return WarpInfo{Active: false}
+	}
 
-	if !active {
+	// Check if singbox-server is running
+	cmd := exec.Command("systemctl", "is-active", "--quiet", "singbox-server")
+	if err := cmd.Run(); err != nil {
 		return WarpInfo{Active: false}
 	}
 
 	// Fetch WARP IP and test latency via Cloudflare Trace
-	client := http.Client{Timeout: 1 * time.Second}
+	client := http.Client{Timeout: 1200 * time.Millisecond}
 	start := time.Now()
 	resp, err := client.Get("https://www.cloudflare.com/cdn-cgi/trace")
 	latency := int(time.Since(start).Milliseconds())
 
 	if err != nil {
-		return WarpInfo{Active: true, IP: "WireGuard Up (No Internet)", Latency: 0}
+		return WarpInfo{Active: true, IP: "Активен (Сплит)", Latency: 0}
 	}
 	defer resp.Body.Close()
 
@@ -899,7 +1390,11 @@ func getWARPStatus() WarpInfo {
 			warpStatus = strings.TrimPrefix(l, "warp=")
 		}
 	}
-	return WarpInfo{Active: (warpStatus == "on"), IP: ip, Latency: latency}
+
+	if warpStatus == "on" {
+		return WarpInfo{Active: true, IP: ip, Latency: latency}
+	}
+	return WarpInfo{Active: true, IP: "Обход (" + ip + ")", Latency: latency}
 }
 
 func getVirtualization() string {
@@ -931,15 +1426,20 @@ func startTrafficCollector() {
 		lastIn = curIn
 		lastOut = curOut
 
+		cpuPercent := getCPUUsage()
+		_, _, ramPercent := getRAMUsage()
+
 		historyMu.Lock()
-		trafficHistory = append(trafficHistory, TrafficRecord{
+		metricsHistory = append(metricsHistory, SystemMetricRecord{
 			Time: time.Now().Format("15:04:05"),
 			Rx:   deltaIn,
 			Tx:   deltaOut,
+			CPU:  cpuPercent,
+			RAM:  ramPercent,
 		})
 		// Cap history at 20 records
-		if len(trafficHistory) > 20 {
-			trafficHistory = trafficHistory[1:]
+		if len(metricsHistory) > 20 {
+			metricsHistory = metricsHistory[1:]
 		}
 		historyMu.Unlock()
 	}
@@ -968,18 +1468,26 @@ type ClashDNS struct {
 	Nameserver  []string `yaml:"nameserver"`
 }
 
-func handleSubClash(w http.ResponseWriter, r *http.Request) {
-	token := strings.TrimPrefix(r.URL.Path, "/sub/clash/")
-	cfgMu.RLock()
-	validToken := cfg.Token
-	cfgMu.RUnlock()
-
-	if token != validToken {
-		http.Error(w, "Invalid Token", http.StatusForbidden)
-		return
+func getDNSAddress(dnsType, customValue string) string {
+	switch dnsType {
+	case "cloudflare":
+		return "https://1.1.1.1/dns-query"
+	case "google":
+		return "https://8.8.8.8/dns-query"
+	case "adguard":
+		return "https://dns.adguard-dns.com/dns-query"
+	case "custom":
+		if customValue != "" {
+			return customValue
+		}
 	}
+	return "https://1.1.1.1/dns-query"
+}
 
+func buildClashSubscription() ([]byte, error) {
 	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+
 	clash := ClashConfig{
 		Port:      7890,
 		SocksPort: 7891,
@@ -994,42 +1502,57 @@ func handleSubClash(w http.ResponseWriter, r *http.Request) {
 			EnhancedMode: "fake-ip",
 			FakeIPRange:  "198.18.0.1/16",
 			Nameserver: []string{
-				"https://1.1.1.1/dns-query",
-				"https://8.8.8.8/dns-query",
+				getDNSAddress(cfg.DNSProxy, cfg.CustomDNSProxy),
 			},
 		},
 	}
 
-	// Add Hysteria 2 proxy
+	hy2SNI := cfg.HysteriaSNI
+	if hy2SNI == "" {
+		hy2SNI = cfg.Domain
+		if cfg.SkipCertVerify {
+			hy2SNI = "dl.google.com"
+		}
+	}
+
 	clash.Proxies = append(clash.Proxies, map[string]interface{}{
 		"name":             "Hysteria 2",
 		"type":             "hysteria2",
 		"server":           cfg.Domain,
 		"port":             cfg.HysteriaPort,
 		"password":         cfg.HysteriaPassword,
-		"sni":              cfg.Domain,
+		"sni":              hy2SNI,
 		"skip-cert-verify": cfg.SkipCertVerify,
 	})
 
-	// Add Mieru proxy
 	clash.Proxies = append(clash.Proxies, map[string]interface{}{
-		"name":     "Mieru",
-		"type":     "mieru",
-		"server":   cfg.Domain,
-		"port":     cfg.MieruPort,
-		"username": cfg.MieruUser,
-		"password": cfg.MieruPassword,
+		"name":         "Mieru",
+		"type":         "mieru",
+		"server":       cfg.Domain,
+		"port":         cfg.MieruPort,
+		"username":     cfg.MieruUser,
+		"password":     cfg.MieruPassword,
+		"transport":    "TCP",
+		"udp":          true,
+		"multiplexing": "MULTIPLEXING_HIGH",
 	})
 
-	// Add AnyTLS proxy
+	anytlsSNI := cfg.AnyTLSSNI
+	if anytlsSNI == "" {
+		anytlsSNI = "images.apple.com"
+	}
+
 	clash.Proxies = append(clash.Proxies, map[string]interface{}{
-		"name":             "AnyTLS",
-		"type":             "anytls",
-		"server":           cfg.Domain,
-		"port":             cfg.AnyTLSPort,
-		"password":         cfg.AnyTLSPassword,
-		"sni":              cfg.Domain,
-		"skip-cert-verify": true, // Reference anytls uses self-signed cert
+		"name":               "AnyTLS",
+		"type":               "anytls",
+		"server":             cfg.Domain,
+		"port":               cfg.AnyTLSPort,
+		"password":           cfg.AnyTLSPassword,
+		"sni":                anytlsSNI,
+		"client-fingerprint": "chrome",
+		"udp":                true,
+		"alpn":               []string{"h2", "http/1.1"},
+		"skip-cert-verify":   true,
 	})
 
 	clash.ProxyGroups = append(clash.ProxyGroups, map[string]interface{}{
@@ -1042,7 +1565,6 @@ func handleSubClash(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 
-	// Setup Direct Domains
 	directDomains := strings.Split(cfg.DirectList, "\n")
 	for _, domain := range directDomains {
 		domain = strings.TrimSpace(domain)
@@ -1051,37 +1573,45 @@ func handleSubClash(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	directDomainsFromGithubMu.RLock()
+	for _, domain := range directDomainsFromGithub {
+		clash.Rules = append(clash.Rules, fmt.Sprintf("DOMAIN-SUFFIX,%s,DIRECT", domain))
+	}
+	directDomainsFromGithubMu.RUnlock()
+
 	clash.Rules = append(clash.Rules, "GEOIP,RU,DIRECT")
 	clash.Rules = append(clash.Rules, "MATCH,PROXY")
-	cfgMu.RUnlock()
 
-	out, err := yaml.Marshal(clash)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/yaml; charset=utf-8")
-	w.Write(out)
+	return yaml.Marshal(clash)
 }
 
-func handleSubSingbox(w http.ResponseWriter, r *http.Request) {
-	token := strings.TrimPrefix(r.URL.Path, "/sub/singbox/")
+func buildSingboxSubscription() ([]byte, error) {
 	cfgMu.RLock()
-	validToken := cfg.Token
-	cfgMu.RUnlock()
+	defer cfgMu.RUnlock()
 
-	if token != validToken {
-		http.Error(w, "Invalid Token", http.StatusForbidden)
-		return
+	hy2SNI := cfg.HysteriaSNI
+	if hy2SNI == "" {
+		hy2SNI = cfg.Domain
+		if cfg.SkipCertVerify {
+			hy2SNI = "dl.google.com"
+		}
 	}
 
-	cfgMu.RLock()
+	anytlsSNI := cfg.AnyTLSSNI
+	if anytlsSNI == "" {
+		anytlsSNI = "images.apple.com"
+	}
+
+	naiveSNI := cfg.NaiveSNI
+	if naiveSNI == "" {
+		naiveSNI = cfg.Domain
+	}
+
 	singbox := map[string]interface{}{
 		"dns": map[string]interface{}{
 			"servers": []map[string]interface{}{
-				{"tag": "cloudflare", "address": "https://1.1.1.1/dns-query"},
-				{"tag": "local", "address": "local", "detour": "direct"},
+				{"tag": "proxy-dns", "address": getDNSAddress(cfg.DNSProxy, cfg.CustomDNSProxy)},
+				{"tag": "local", "address": getDNSAddress(cfg.DNSDirect, cfg.CustomDNSDirect), "detour": "direct"},
 			},
 			"rules": []map[string]interface{}{
 				{"outbound": "direct", "geoip": []string{"private"}},
@@ -1099,7 +1629,7 @@ func handleSubSingbox(w http.ResponseWriter, r *http.Request) {
 				"password":    cfg.HysteriaPassword,
 				"tls": map[string]interface{}{
 					"enabled":     true,
-					"server_name": cfg.Domain,
+					"server_name": hy2SNI,
 					"insecure":    cfg.SkipCertVerify,
 				},
 			},
@@ -1120,7 +1650,7 @@ func handleSubSingbox(w http.ResponseWriter, r *http.Request) {
 				"password":    cfg.AnyTLSPassword,
 				"tls": map[string]interface{}{
 					"enabled":     true,
-					"server_name": cfg.Domain,
+					"server_name": anytlsSNI,
 					"insecure":    true,
 				},
 			},
@@ -1133,7 +1663,7 @@ func handleSubSingbox(w http.ResponseWriter, r *http.Request) {
 				"password":    cfg.NaivePassword,
 				"tls": map[string]interface{}{
 					"enabled":     true,
-					"server_name": cfg.Domain,
+					"server_name": naiveSNI,
 					"insecure":    cfg.SkipCertVerify,
 				},
 			},
@@ -1144,7 +1674,6 @@ func handleSubSingbox(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	// Routing Rules
 	var directDomains []string
 	domains := strings.Split(cfg.DirectList, "\n")
 	for _, domain := range domains {
@@ -1154,15 +1683,1037 @@ func handleSubSingbox(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	directDomainsFromGithubMu.RLock()
+	for _, domain := range directDomainsFromGithub {
+		directDomains = append(directDomains, domain)
+	}
+	directDomainsFromGithubMu.RUnlock()
+
 	singbox["route"] = map[string]interface{}{
 		"rules": []map[string]interface{}{
 			{"domain_suffix": directDomains, "outbound": "direct"},
 			{"geoip": []string{"ru"}, "outbound": "direct"},
-			{"outbound": "Hysteria 2"}, // Default Proxy node
+			{"outbound": "Hysteria 2"},
 		},
 	}
+
+	return json.MarshalIndent(singbox, "", "  ")
+}
+
+func buildUniversalSubscription() ([]byte, error) {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+
+	insecureStr := "0"
+	if cfg.SkipCertVerify {
+		insecureStr = "1"
+	}
+
+	hy2URI := fmt.Sprintf("hysteria2://%s@%s:%d/?insecure=%s&sni=%s#Hysteria2",
+		cfg.HysteriaPassword, cfg.Domain, cfg.HysteriaPort, insecureStr, cfg.Domain)
+
+	payload := hy2URI + "\n"
+	b64 := base64.StdEncoding.EncodeToString([]byte(payload))
+	return []byte(b64), nil
+}
+
+func pregenerateSubscriptions() error {
+	cfgMu.RLock()
+	token := cfg.Token
 	cfgMu.RUnlock()
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(singbox)
+	if token == "" {
+		return fmt.Errorf("token is empty")
+	}
+
+	subsDir := "/etc/vpn-protocols/subs"
+	os.MkdirAll(subsDir, 0755)
+
+	clashBytes, err := buildClashSubscription()
+	if err == nil {
+		os.WriteFile(filepath.Join(subsDir, "clash_"+token+".yaml"), clashBytes, 0644)
+	} else {
+		log.Println("Error building Clash sub:", err)
+	}
+
+	singboxBytes, err := buildSingboxSubscription()
+	if err == nil {
+		os.WriteFile(filepath.Join(subsDir, "singbox_"+token+".json"), singboxBytes, 0644)
+	} else {
+		log.Println("Error building Sing-box sub:", err)
+	}
+
+	universalBytes, err := buildUniversalSubscription()
+	if err == nil {
+		os.WriteFile(filepath.Join(subsDir, "universal_"+token+".txt"), universalBytes, 0644)
+	} else {
+		log.Println("Error building Universal sub:", err)
+	}
+
+	log.Println("Pregenerated static subscription files successfully")
+	return nil
 }
+
+func handleSubClash(w http.ResponseWriter, r *http.Request) {
+	token := strings.TrimPrefix(r.URL.Path, "/sub/clash/")
+	token = strings.TrimSuffix(token, ".yaml")
+	cfgMu.RLock()
+	validToken := cfg.Token
+	cfgMu.RUnlock()
+
+	if token != validToken {
+		http.Error(w, "Invalid Token", http.StatusForbidden)
+		return
+	}
+
+	subsDir := "/etc/vpn-protocols/subs"
+	filePath := filepath.Join(subsDir, "clash_"+token+".yaml")
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Println("Sub cache miss for Clash, generating on the fly")
+		var buildErr error
+		data, buildErr = buildClashSubscription()
+		if buildErr != nil {
+			http.Error(w, buildErr.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/yaml; charset=utf-8")
+	w.Write(data)
+}
+
+func handleSubSingbox(w http.ResponseWriter, r *http.Request) {
+	token := strings.TrimPrefix(r.URL.Path, "/sub/singbox/")
+	token = strings.TrimSuffix(token, ".json")
+	cfgMu.RLock()
+	validToken := cfg.Token
+	cfgMu.RUnlock()
+
+	if token != validToken {
+		http.Error(w, "Invalid Token", http.StatusForbidden)
+		return
+	}
+
+	subsDir := "/etc/vpn-protocols/subs"
+	filePath := filepath.Join(subsDir, "singbox_"+token+".json")
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Println("Sub cache miss for Sing-box, generating on the fly")
+		var buildErr error
+		data, buildErr = buildSingboxSubscription()
+		if buildErr != nil {
+			http.Error(w, buildErr.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Write(data)
+}
+
+func handleSubUniversal(w http.ResponseWriter, r *http.Request) {
+	token := strings.TrimPrefix(r.URL.Path, "/sub/universal/")
+	token = strings.TrimSuffix(token, ".txt")
+	cfgMu.RLock()
+	validToken := cfg.Token
+	cfgMu.RUnlock()
+
+	if token != validToken {
+		http.Error(w, "Invalid Token", http.StatusForbidden)
+		return
+	}
+
+	subsDir := "/etc/vpn-protocols/subs"
+	filePath := filepath.Join(subsDir, "universal_"+token+".txt")
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Println("Sub cache miss for Universal, generating on the fly")
+		var buildErr error
+		data, buildErr = buildUniversalSubscription()
+		if buildErr != nil {
+			http.Error(w, buildErr.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Write(data)
+}
+
+func uniqueStrings(input []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, entry := range input {
+		if _, value := keys[entry]; !value && entry != "" {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
+}
+
+func generateSingboxServerConfig() error {
+	cfgMu.RLock()
+	warpMode := cfg.WarpMode
+	warpRulesURL := cfg.WarpRulesURL
+	directList := cfg.DirectList
+	warpList := cfg.WarpList
+	panelPort := cfg.Port
+	dnsProxy := cfg.DNSProxy
+	dnsDirect := cfg.DNSDirect
+	customDNSProxy := cfg.CustomDNSProxy
+	customDNSDirect := cfg.CustomDNSDirect
+	protonProfiles := cfg.ProtonProfiles
+	protonStrategy := cfg.ProtonStrategy
+	protonFallback := cfg.ProtonFallback
+	hyCascade := cfg.HysteriaCascade
+	mieCascade := cfg.MieruCascade
+	anyCascade := cfg.AnyTLSCascade
+	navCascade := cfg.NaiveCascade
+	cfgMu.RUnlock()
+
+	if warpMode == "" {
+		warpMode = "global"
+	}
+
+	getDNSAddr := func(dnsType, customVal string) string {
+		switch dnsType {
+		case "cloudflare":
+			return "https://1.1.1.1/dns-query"
+		case "google":
+			return "https://8.8.8.8/dns-query"
+		case "adguard":
+			return "https://dns.adguard-dns.com/dns-query"
+		case "custom":
+			if customVal != "" {
+				return customVal
+			}
+		}
+		return "https://1.1.1.1/dns-query"
+	}
+	dnsProxyAddr := getDNSAddr(dnsProxy, customDNSProxy)
+	dnsDirectAddr := getDNSAddr(dnsDirect, customDNSDirect)
+
+	hasWarp := false
+	warpIpV4 := "172.16.0.2/32"
+	warpIpV6 := "2606:4700:110::/128"
+	warpPrivKey := ""
+	warpReserved := []int{0, 0, 0}
+
+	warpCredsPath := "/etc/vpn-protocols/warp-credentials.json"
+	if data, err := os.ReadFile(warpCredsPath); err == nil {
+		var creds struct {
+			LocalAddressV4 string `json:"local_address_v4"`
+			LocalAddressV6 string `json:"local_address_v6"`
+			PrivateKey     string `json:"private_key"`
+			Reserved       []int  `json:"reserved"`
+		}
+		if err := json.Unmarshal(data, &creds); err == nil {
+			hasWarp = true
+			warpIpV4 = creds.LocalAddressV4
+			warpIpV6 = creds.LocalAddressV6
+			warpPrivKey = creds.PrivateKey
+			if len(creds.Reserved) == 3 {
+				warpReserved = creds.Reserved
+			}
+		}
+	}
+
+	var directDomains []string
+	lines := strings.Split(directList, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			directDomains = append(directDomains, line)
+		}
+	}
+
+	directDomainsFromGithubMu.RLock()
+	for _, domain := range directDomainsFromGithub {
+		directDomains = append(directDomains, domain)
+	}
+	directDomainsFromGithubMu.RUnlock()
+	directDomains = uniqueStrings(directDomains)
+
+	var warpDomains []string
+	warpLines := strings.Split(warpList, "\n")
+	for _, line := range warpLines {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			warpDomains = append(warpDomains, line)
+		}
+	}
+
+	if warpMode == "domains" && warpRulesURL != "" {
+		urls := strings.Split(warpRulesURL, ",")
+		client := &http.Client{Timeout: 10 * time.Second}
+		for _, urlStr := range urls {
+			urlStr = strings.TrimSpace(urlStr)
+			if urlStr == "" {
+				continue
+			}
+			log.Println("Downloading WARP domains list from URL:", urlStr)
+			if resp, err := client.Get(urlStr); err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					if body, err := io.ReadAll(resp.Body); err == nil {
+						downloadedLines := strings.Split(string(body), "\n")
+						for _, line := range downloadedLines {
+							line = strings.TrimSpace(line)
+							if line != "" && !strings.HasPrefix(line, "#") {
+								warpDomains = append(warpDomains, line)
+							}
+						}
+					}
+				}
+			} else {
+				log.Println("Failed to download WARP domains from URL:", urlStr, err)
+			}
+		}
+	}
+	warpDomains = uniqueStrings(warpDomains)
+
+	type SingBoxLog struct {
+		Level  string `json:"level"`
+		Output string `json:"output"`
+	}
+	type SingBoxDNSServer struct {
+		Tag     string `json:"tag"`
+		Address string `json:"address"`
+		Detour  string `json:"detour,omitempty"`
+	}
+	type SingBoxDNSRule struct {
+		Server       string   `json:"server"`
+		DomainSuffix []string `json:"domain_suffix"`
+	}
+	type SingBoxDNS struct {
+		Servers []SingBoxDNSServer `json:"servers"`
+		Rules   []SingBoxDNSRule   `json:"rules"`
+	}
+	type SingBoxInbound struct {
+		Type          string   `json:"type"`
+		Tag           string   `json:"tag"`
+		InterfaceName string   `json:"interface_name"`
+		Address       []string `json:"address"`
+		AutoRoute     bool     `json:"auto_route"`
+		StrictRoute   bool     `json:"strict_route"`
+		Stack         string   `json:"stack"`
+	}
+	type SingBoxPeer struct {
+		Address    string   `json:"address"`
+		Port       int      `json:"port"`
+		PublicKey  string   `json:"public_key"`
+		AllowedIPs []string `json:"allowed_ips"`
+		Reserved   []int    `json:"reserved,omitempty"`
+	}
+	type SingBoxEndpoint struct {
+		Type       string        `json:"type"`
+		Tag        string        `json:"tag"`
+		Address    []string      `json:"address"`
+		PrivateKey string        `json:"private_key"`
+		Mtu        int           `json:"mtu"`
+		Peers      []SingBoxPeer `json:"peers"`
+	}
+	type SingBoxRouteRule struct {
+		Port         int      `json:"port,omitempty"`
+		DomainSuffix []string `json:"domain_suffix,omitempty"`
+		ProcessName  []string `json:"process_name,omitempty"`
+		Outbound     string   `json:"outbound"`
+	}
+	type SingBoxRoute struct {
+		AutoDetectInterface bool               `json:"auto_detect_interface"`
+		Rules               []SingBoxRouteRule `json:"rules"`
+	}
+	type SingBoxServerConfig struct {
+		Log       SingBoxLog        `json:"log"`
+		DNS       SingBoxDNS        `json:"dns"`
+		Inbounds  []SingBoxInbound  `json:"inbounds"`
+		Endpoints []SingBoxEndpoint `json:"endpoints,omitempty"`
+		Outbounds []interface{}     `json:"outbounds"`
+		Route     SingBoxRoute      `json:"route"`
+	}
+
+	serverCfg := SingBoxServerConfig{
+		Log: SingBoxLog{
+			Level:  "info",
+			Output: "/var/log/singbox-server.log",
+		},
+		DNS: SingBoxDNS{
+			Servers: []SingBoxDNSServer{
+				{Tag: "proxy-dns", Address: dnsProxyAddr},
+				{Tag: "proxy-dns", Address: "https://8.8.8.8/dns-query"},
+				{Tag: "local", Address: dnsDirectAddr, Detour: "direct"},
+				{Tag: "local", Address: "https://8.8.8.8/dns-query", Detour: "direct"},
+			},
+			Rules: []SingBoxDNSRule{
+				{
+					Server: "local",
+					DomainSuffix: []string{
+						"sslip.io",
+						"nip.io",
+						"traefik.me",
+					},
+				},
+			},
+		},
+		Inbounds: []SingBoxInbound{
+			{
+				Type:          "tun",
+				Tag:           "tun-in",
+				InterfaceName: "singtun0",
+				Address: []string{
+					"172.19.0.1/30",
+					"fdfe:dcba:9876::1/126",
+				},
+				AutoRoute:   true,
+				StrictRoute: true,
+				Stack:       "gvisor",
+			},
+		},
+	}
+
+	// 1. Add Endpoints (WireGuard interfaces)
+	var endpoints []SingBoxEndpoint
+	if hasWarp {
+		endpoints = append(endpoints, SingBoxEndpoint{
+			Type:       "wireguard",
+			Tag:        "warp",
+			Address:    []string{warpIpV4, warpIpV6},
+			PrivateKey: warpPrivKey,
+			Mtu:        1280,
+			Peers: []SingBoxPeer{
+				{
+					Address:    "engage.cloudflareclient.com",
+					Port:       2408,
+					PublicKey:  "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+					AllowedIPs: []string{"0.0.0.0/0", "::/0"},
+					Reserved:   warpReserved,
+				},
+			},
+		})
+	}
+
+	for _, profile := range protonProfiles {
+		endpoints = append(endpoints, SingBoxEndpoint{
+			Type:       "wireguard",
+			Tag:        profile.ID,
+			Address:    profile.Addresses,
+			PrivateKey: profile.PrivateKey,
+			Mtu:        1400,
+			Peers: []SingBoxPeer{
+				{
+					Address:    profile.Endpoint,
+					Port:       profile.Port,
+					PublicKey:  profile.PublicKey,
+					AllowedIPs: []string{"0.0.0.0/0", "::/0"},
+				},
+			},
+		})
+	}
+	serverCfg.Endpoints = endpoints
+
+	// 2. Add Outbounds
+	outbounds := []interface{}{
+		map[string]interface{}{
+			"type": "direct",
+			"tag":  "direct",
+		},
+	}
+
+	fallbackOutbound := "direct"
+	if protonFallback == "warp" && hasWarp {
+		fallbackOutbound = "warp"
+	}
+
+	if len(protonProfiles) > 0 {
+		var outbTags []string
+		for _, p := range protonProfiles {
+			outbTags = append(outbTags, p.ID)
+		}
+
+		// Group for Auto (fastest/failover)
+		autoStrategy := "urltest"
+		if protonStrategy == "failover" {
+			autoStrategy = "failover"
+		}
+
+		if autoStrategy == "urltest" {
+			outbounds = append(outbounds, map[string]interface{}{
+				"type":      "urltest",
+				"tag":       "proton-auto",
+				"outbounds": outbTags,
+				"url":       "https://www.google.com/generate_204",
+				"interval":  "3m",
+				"tolerance": 50,
+			})
+		} else {
+			outbounds = append(outbounds, map[string]interface{}{
+				"type":      "failover",
+				"tag":       "proton-auto",
+				"outbounds": outbTags,
+			})
+		}
+
+		// Cascade failover group for auto-route
+		outbounds = append(outbounds, map[string]interface{}{
+			"type":      "failover",
+			"tag":       "proton-cascade",
+			"outbounds": []string{"proton-auto", fallbackOutbound},
+		})
+
+		// Cascade failover groups for specific servers
+		for _, p := range protonProfiles {
+			outbounds = append(outbounds, map[string]interface{}{
+				"type":      "failover",
+				"tag":       p.ID + "-cascade",
+				"outbounds": []string{p.ID, fallbackOutbound},
+			})
+		}
+	}
+	serverCfg.Outbounds = outbounds
+
+	getOutboundTag := func(cascade string) string {
+		if cascade == "" || cascade == "warp" {
+			if hasWarp {
+				return "warp"
+			}
+			return "direct"
+		}
+		if cascade == "direct" {
+			return "direct"
+		}
+		if cascade == "proton-auto" {
+			if len(protonProfiles) > 0 {
+				return "proton-cascade"
+			}
+			if hasWarp {
+				return "warp"
+			}
+			return "direct"
+		}
+		if strings.HasPrefix(cascade, "proton-") {
+			if len(protonProfiles) > 0 {
+				return cascade + "-cascade"
+			}
+			if hasWarp {
+				return "warp"
+			}
+			return "direct"
+		}
+		return "direct"
+	}
+
+	defaultOutbound := "direct"
+	if warpMode == "global" || warpMode == "warp" {
+		if hasWarp {
+			defaultOutbound = "warp"
+		}
+	} else if warpMode != "" && warpMode != "direct" && warpMode != "domains" {
+		defaultOutbound = getOutboundTag(warpMode)
+	}
+
+	rules := []SingBoxRouteRule{
+		{Port: 22, Outbound: "direct"},
+		{Port: panelPort, Outbound: "direct"},
+	}
+
+	// 3. Process-based Cascade Routing Rules
+	if hyCascade != "direct" {
+		rules = append(rules, SingBoxRouteRule{
+			ProcessName: []string{"hysteria"},
+			Outbound:    getOutboundTag(hyCascade),
+		})
+	}
+	if mieCascade != "direct" {
+		rules = append(rules, SingBoxRouteRule{
+			ProcessName: []string{"mita"},
+			Outbound:    getOutboundTag(mieCascade),
+		})
+	}
+	if anyCascade != "direct" {
+		rules = append(rules, SingBoxRouteRule{
+			ProcessName: []string{"anytls-server"},
+			Outbound:    getOutboundTag(anyCascade),
+		})
+	}
+	if navCascade != "direct" {
+		rules = append(rules, SingBoxRouteRule{
+			ProcessName: []string{"caddy"},
+			Outbound:    getOutboundTag(navCascade),
+		})
+	}
+
+	// 4. Custom Domain Routes
+	customDomainRoutes := make(map[string][]string)
+	for _, line := range strings.Split(cfg.DomainRoutes, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) == 2 {
+			domain := strings.TrimSpace(parts[0])
+			outbound := strings.TrimSpace(parts[1])
+			if domain != "" && outbound != "" {
+				customDomainRoutes[outbound] = append(customDomainRoutes[outbound], domain)
+			}
+		}
+	}
+	var outboundsWithRules []string
+	for k := range customDomainRoutes {
+		outboundsWithRules = append(outboundsWithRules, k)
+	}
+	sort.Strings(outboundsWithRules)
+	for _, outb := range outboundsWithRules {
+		doms := customDomainRoutes[outb]
+		if len(doms) > 0 {
+			rules = append(rules, SingBoxRouteRule{
+				DomainSuffix: doms,
+				Outbound:     getOutboundTag(outb),
+			})
+		}
+	}
+
+	if len(directDomains) > 0 {
+		rules = append(rules, SingBoxRouteRule{
+			DomainSuffix: directDomains,
+			Outbound:     "direct",
+		})
+	}
+
+	if hasWarp && len(warpDomains) > 0 {
+		rules = append(rules, SingBoxRouteRule{
+			DomainSuffix: warpDomains,
+			Outbound:     "warp",
+		})
+	}
+
+	rules = append(rules, SingBoxRouteRule{
+		Outbound: defaultOutbound,
+	})
+
+	serverCfg.Route = SingBoxRoute{
+		AutoDetectInterface: true,
+		Rules:               rules,
+	}
+
+	configBytes, err := json.MarshalIndent(serverCfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshaling config: %w", err)
+	}
+
+	configFilePath := "/etc/vpn-protocols/singbox-server.json"
+	if err := os.WriteFile(configFilePath, configBytes, 0644); err != nil {
+		return fmt.Errorf("error writing config file: %w", err)
+	}
+
+	log.Println("Generated singbox-server.json natively from Go")
+	return nil
+}
+
+func handleUpdatePanel(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !checkSession(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		log.Println("Triggering self-update script...")
+		// Execute update.sh script on the server
+		cmd := exec.Command("/bin/bash", "/root/vpn-server-installer/panel/update.sh")
+		if err := cmd.Run(); err != nil {
+			log.Println("Self-update script execution failed:", err)
+		}
+	}()
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Update initiated"))
+}
+
+type ProtocolSettingsRequest struct {
+	Protocol string `json:"protocol"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	SNI      string `json:"sni"`
+}
+
+func handleSaveProtocolSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !checkSession(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req ProtocolSettingsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	if req.Protocol != "WARP" && (req.Port <= 0 || req.Port > 65535) {
+		http.Error(w, "Invalid Port", http.StatusBadRequest)
+		return
+	}
+
+	cfgMu.Lock()
+	var oldPort int
+	switch req.Protocol {
+	case "Hysteria2":
+		oldPort = cfg.HysteriaPort
+		cfg.HysteriaPort = req.Port
+		cfg.HysteriaPassword = req.Password
+		cfg.HysteriaSNI = req.SNI
+
+		// Generate configuration
+		confContent := fmt.Sprintf("listen: :%d\ntls:\n  cert: /etc/vpn-protocols/certs/cert.pem\n  key: /etc/vpn-protocols/certs/key.pem\nauth:\n  type: password\n  password: \"%s\"\n", req.Port, req.Password)
+		if err := os.WriteFile("/etc/vpn-protocols/hysteria2.yaml", []byte(confContent), 0644); err != nil {
+			log.Println("Error writing Hysteria2 config:", err)
+		}
+		go exec.Command("systemctl", "restart", "hysteria2").Run()
+
+	case "Mieru":
+		oldPort = cfg.MieruPort
+		cfg.MieruPort = req.Port
+		cfg.MieruUser = req.Username
+		cfg.MieruPassword = req.Password
+
+		type PortBinding struct {
+			Port     int    `json:"port"`
+			Protocol string `json:"protocol"`
+		}
+		type MieruUserObj struct {
+			Name            string `json:"name"`
+			Password        string `json:"password"`
+			AllowPrivateIP  bool   `json:"allowPrivateIP"`
+			AllowLoopbackIP bool   `json:"allowLoopbackIP"`
+		}
+		type MitaConfig struct {
+			PortBindings []PortBinding  `json:"portBindings"`
+			Users        []MieruUserObj `json:"users"`
+			LoggingLevel string         `json:"loggingLevel"`
+			Mtu          int            `json:"mtu"`
+		}
+		mitaCfg := MitaConfig{
+			PortBindings: []PortBinding{
+				{Port: req.Port, Protocol: "TCP"},
+				{Port: req.Port, Protocol: "UDP"},
+			},
+			Users: []MieruUserObj{
+				{Name: req.Username, Password: req.Password, AllowPrivateIP: true, AllowLoopbackIP: true},
+			},
+			LoggingLevel: "INFO",
+			Mtu:          1400,
+		}
+		mitaBytes, err := json.MarshalIndent(mitaCfg, "", "  ")
+		if err == nil {
+			mitaConfPath := "/etc/vpn-protocols/mita.json"
+			os.WriteFile(mitaConfPath, mitaBytes, 0644)
+			exec.Command("/usr/local/bin/mita", "apply", "config", mitaConfPath).Run()
+		} else {
+			log.Println("Error marshaling Mieru config:", err)
+		}
+		go exec.Command("systemctl", "restart", "mita").Run()
+
+	case "AnyTLS":
+		oldPort = cfg.AnyTLSPort
+		cfg.AnyTLSPort = req.Port
+		cfg.AnyTLSPassword = req.Password
+		cfg.AnyTLSSNI = req.SNI
+
+		serviceContent := fmt.Sprintf(`[Unit]
+Description=AnyTLS Proxy Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/anytls-server -l 0.0.0.0:%d -p %s
+Restart=always
+RestartSec=3
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
+`, req.Port, req.Password)
+		if err := os.WriteFile("/etc/systemd/system/anytls-server.service", []byte(serviceContent), 0644); err == nil {
+			exec.Command("systemctl", "daemon-reload").Run()
+		} else {
+			log.Println("Error writing AnyTLS service file:", err)
+		}
+		go exec.Command("systemctl", "restart", "anytls-server").Run()
+
+	case "NaiveProxy":
+		oldPort = cfg.NaivePort
+		cfg.NaivePort = req.Port
+		cfg.NaiveUser = req.Username
+		cfg.NaivePassword = req.Password
+		cfg.NaiveSNI = req.SNI
+
+		caddyContent := fmt.Sprintf(`:%d {
+    tls "/etc/vpn-protocols/certs/cert.pem" "/etc/vpn-protocols/certs/key.pem"
+    forward_proxy {
+        basic_auth "%s" "%s"
+        hide_ip
+        hide_via
+        probe_resistance
+    }
+}
+`, req.Port, req.Username, req.Password)
+		if err := os.WriteFile("/etc/vpn-protocols/Caddyfile", []byte(caddyContent), 0644); err != nil {
+			log.Println("Error writing Caddyfile:", err)
+		}
+		go exec.Command("systemctl", "restart", "caddy").Run()
+
+	case "WARP":
+		cfg.WarpLicenseKey = req.Password
+		if req.Password != "" {
+			log.Println("Upgrading WARP license key via wgcf...")
+			if err := upgradeWarpLicenseKey(req.Password); err != nil {
+				cfgMu.Unlock()
+				log.Println("Error upgrading WARP license key:", err)
+				http.Error(w, "Failed to activate WARP+ key: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+	default:
+		cfgMu.Unlock()
+		http.Error(w, "Unsupported protocol", http.StatusMethodNotAllowed)
+		return
+	}
+	cfgMu.Unlock()
+
+	saveConfig()
+	adjustFirewallRules(oldPort, req.Port, req.Protocol)
+	applyRoutingChanges()
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Success"))
+}
+
+func handleGetProtocolSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !checkSession(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+
+	settings := map[string]map[string]interface{}{
+		"Hysteria2": {
+			"port":     cfg.HysteriaPort,
+			"username": "",
+			"password": cfg.HysteriaPassword,
+			"sni":      cfg.HysteriaSNI,
+		},
+		"Mieru": {
+			"port":     cfg.MieruPort,
+			"username": cfg.MieruUser,
+			"password": cfg.MieruPassword,
+			"sni":      "",
+		},
+		"AnyTLS": {
+			"port":     cfg.AnyTLSPort,
+			"username": "",
+			"password": cfg.AnyTLSPassword,
+			"sni":      cfg.AnyTLSSNI,
+		},
+		"NaiveProxy": {
+			"port":     cfg.NaivePort,
+			"username": cfg.NaiveUser,
+			"password": cfg.NaivePassword,
+			"sni":      cfg.NaiveSNI,
+		},
+		"WARP": {
+			"port":     0,
+			"username": "",
+			"password": cfg.WarpLicenseKey,
+			"sni":      "",
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(settings)
+}
+
+func adjustFirewallRules(oldPort, newPort int, protocol string) {
+	if oldPort == newPort {
+		return
+	}
+
+	isTCP := true
+	isUDP := false
+	if protocol == "Hysteria2" {
+		isTCP = false
+		isUDP = true
+	} else if protocol == "Mieru" {
+		isUDP = true
+	}
+
+	if oldPort > 0 {
+		log.Printf("Closing old port %d for protocol %s", oldPort, protocol)
+		if isTCP {
+			deleteFirewallPort(oldPort, "tcp")
+		}
+		if isUDP {
+			deleteFirewallPort(oldPort, "udp")
+		}
+	}
+
+	if newPort > 0 {
+		log.Printf("Opening new port %d for protocol %s", newPort, protocol)
+		if isTCP {
+			allowFirewallPort(newPort, "tcp")
+		}
+		if isUDP {
+			allowFirewallPort(newPort, "udp")
+		}
+	}
+}
+
+func allowFirewallPort(port int, proto string) {
+	if hasCommand("ufw") {
+		exec.Command("ufw", "allow", fmt.Sprintf("%d/%s", port, proto)).Run()
+	} else if hasCommand("firewall-cmd") {
+		exec.Command("firewall-cmd", "--zone=public", fmt.Sprintf("--add-port=%d/%s", port, proto), "--permanent").Run()
+		exec.Command("firewall-cmd", "--reload").Run()
+	} else {
+		exec.Command("iptables", "-I", "INPUT", "-p", proto, "--dport", fmt.Sprintf("%d", port), "-j", "ACCEPT").Run()
+	}
+
+	exec.Command("iptables", "-I", "INPUT", "-p", proto, "--dport", fmt.Sprintf("%d", port)).Run()
+	exec.Command("iptables", "-I", "OUTPUT", "-p", proto, "--sport", fmt.Sprintf("%d", port)).Run()
+}
+
+func deleteFirewallPort(port int, proto string) {
+	if hasCommand("ufw") {
+		exec.Command("ufw", "delete", "allow", fmt.Sprintf("%d/%s", port, proto)).Run()
+	} else if hasCommand("firewall-cmd") {
+		exec.Command("firewall-cmd", "--zone=public", fmt.Sprintf("--remove-port=%d/%s", port, proto), "--permanent").Run()
+		exec.Command("firewall-cmd", "--reload").Run()
+	} else {
+		exec.Command("iptables", "-D", "INPUT", "-p", proto, "--dport", fmt.Sprintf("%d", port), "-j", "ACCEPT").Run()
+	}
+
+	exec.Command("iptables", "-D", "INPUT", "-p", proto, "--dport", fmt.Sprintf("%d", port)).Run()
+	exec.Command("iptables", "-D", "OUTPUT", "-p", proto, "--sport", fmt.Sprintf("%d", port)).Run()
+}
+
+func hasCommand(cmd string) bool {
+	_, err := exec.LookPath(cmd)
+	return err == nil
+}
+
+func upgradeWarpLicenseKey(key string) error {
+	tempDir, err := os.MkdirTemp("", "wgcf_upgrade")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempDir)
+
+	cmdReg := exec.Command("/usr/local/bin/wgcf", "register", "--accept-tos")
+	cmdReg.Dir = tempDir
+	if err := cmdReg.Run(); err != nil {
+		return fmt.Errorf("error registering warp account: %w", err)
+	}
+
+	cmdUpdate := exec.Command("/usr/local/bin/wgcf", "update", "--license-key", key)
+	cmdUpdate.Dir = tempDir
+	if out, err := cmdUpdate.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to apply license key: %s", string(out))
+	}
+
+	cmdGen := exec.Command("/usr/local/bin/wgcf", "generate")
+	cmdGen.Dir = tempDir
+	if err := cmdGen.Run(); err != nil {
+		return fmt.Errorf("failed to generate wireguard profile: %w", err)
+	}
+
+	profilePath := filepath.Join(tempDir, "wgcf-profile.conf")
+	profileBytes, err := os.ReadFile(profilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read generated profile: %w", err)
+	}
+	profile := string(profileBytes)
+
+	var privKey, addrV4, addrV6 string
+	var reserved = []int{0, 0, 0}
+
+	lines := strings.Split(profile, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(strings.ToLower(line), "privatekey") {
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				privKey = strings.TrimSpace(parts[1])
+			}
+		} else if strings.HasPrefix(strings.ToLower(line), "address") {
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				addrs := strings.Split(parts[1], ",")
+				if len(addrs) >= 1 {
+					addrV4 = strings.TrimSpace(addrs[0])
+				}
+				if len(addrs) >= 2 {
+					addrV6 = strings.TrimSpace(addrs[1])
+				}
+			}
+		} else if strings.Contains(strings.ToLower(line), "reserved") {
+			startIdx := strings.Index(line, "[")
+			endIdx := strings.Index(line, "]")
+			if startIdx != -1 && endIdx != -1 && startIdx < endIdx {
+				arrStr := line[startIdx+1 : endIdx]
+				parts := strings.Split(arrStr, ",")
+				if len(parts) == 3 {
+					fmt.Sscanf(parts[0], "%d", &reserved[0])
+					fmt.Sscanf(parts[1], "%d", &reserved[1])
+					fmt.Sscanf(parts[2], "%d", &reserved[2])
+				}
+			}
+		}
+	}
+
+	if privKey == "" || addrV4 == "" {
+		return fmt.Errorf("could not parse profile options")
+	}
+
+	creds := map[string]interface{}{
+		"private_key":      privKey,
+		"local_address_v4": addrV4,
+		"local_address_v6": addrV6,
+		"reserved":         reserved,
+	}
+	credsBytes, err := json.MarshalIndent(creds, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile("/etc/vpn-protocols/warp-credentials.json", credsBytes, 0644); err != nil {
+		return fmt.Errorf("failed to save credentials: %w", err)
+	}
+
+	return nil
+}
+
+
+
+
+
+

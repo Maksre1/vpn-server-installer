@@ -10,6 +10,12 @@ PORT="${MIERU_PORT:-}"
 USERNAME="${MIERU_USER:-}"
 PASSWORD="${MIERU_PASSWORD:-}"
 
+if [ -f "${CONF_DIR}/mita.json" ]; then
+    [ -z "$PORT" ] && PORT=$(jq -r '.portBindings[0].port' "${CONF_DIR}/mita.json" 2>/dev/null || echo "")
+    [ -z "$USERNAME" ] && USERNAME=$(jq -r '.users[0].name' "${CONF_DIR}/mita.json" 2>/dev/null || echo "")
+    [ -z "$PASSWORD" ] && PASSWORD=$(jq -r '.users[0].password' "${CONF_DIR}/mita.json" 2>/dev/null || echo "")
+fi
+
 # 1. Download Mieru (mita) binary
 BINARY_PATH="/usr/local/bin/mita"
 if [ ! -f "$BINARY_PATH" ]; then
@@ -119,6 +125,7 @@ EOF
 
 # Apply config
 $BINARY_PATH apply config "$CONFIG_JSON"
+systemctl restart mita || true
 log_info "Конфигурация Mieru (mita) успешно применена."
 
 # Export variables for panel

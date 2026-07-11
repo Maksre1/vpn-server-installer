@@ -17,11 +17,10 @@ CRAFT_SELF_SIGNED="${CRAFT_SELF_SIGNED:-false}"
 
 # Copy panel template and static directories to /opt/vpn-panel/
 # This is where our Go application loads HTML templates and static stylesheets
-mkdir -p /opt/vpn-panel/templates /opt/vpn-panel/static
+mkdir -p /opt/vpn-panel/templates /opt/vpn-panel/static /opt/vpn-panel/lists
 cp -r "$(dirname "$0")/panel/templates/"* /opt/vpn-panel/templates/ || true
 cp -r "$(dirname "$0")/panel/static/"* /opt/vpn-panel/static/ || true
-cp "$(dirname "$0")/panel/apply-routing.sh" /opt/vpn-panel/apply-routing.sh || true
-chmod +x /opt/vpn-panel/apply-routing.sh
+cp -r "$(dirname "$0")/lists/"* /opt/vpn-panel/lists/ || true
 
 # 1. Download Go Web Panel Binary from Releases
 # Since this installer is in a repo, it downloads from GitHub releases.
@@ -82,7 +81,7 @@ if [ -z "$PASS_HASH" ] || [ "$PASS_HASH" = "null" ]; then
     # Since we don't have python, we can compute it using our vpn-panel binary!
     # Wait! Our vpn-panel binary generates config default hash when started,
     # but we can write a quick JSON with default values and let it update it.
-    PASS_HASH="\$2a\$10\$LhRz6Yg6rJz7s.x8tF44D.iZ.n/1.D1N2q7uL5X7s7.p7Uu/z8a" # Default bcrypt hash for "admin"
+    PASS_HASH="\$2a\$12\$goFx7muLcftL69Nf0ocNPeo2m6oeh4TJFu6Ij3D8xIUBFUAaY3WCq" # Default bcrypt hash for "admin"
 fi
 
 # Generate default DIRECT and WARP domain lists
@@ -162,6 +161,8 @@ After=network.target
 [Service]
 Type=simple
 ExecStart=$SINGBOX_BIN run -c /etc/vpn-protocols/singbox-server.json
+Environment="ENABLE_DEPRECATED_LEGACY_DNS_SERVERS=true"
+Environment="ENABLE_DEPRECATED_MISSING_DOMAIN_RESOLVER=true"
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
