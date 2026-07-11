@@ -17,6 +17,9 @@ BINARY_PATH="/usr/local/bin/caddy"
 if [ ! -f "$BINARY_PATH" ]; then
     log_info "Запуск компиляции Caddy с плагином NaiveProxy (это займет 1-2 минуты)..."
     
+    BUILD_DIR="/root/caddy_build"
+    mkdir -p "$BUILD_DIR"
+    
     # Download Go compiler
     GO_VER="1.21.6"
     GO_ARCH="amd64"
@@ -26,15 +29,18 @@ if [ ! -f "$BINARY_PATH" ]; then
     GO_TAR="go${GO_VER}.linux-${GO_ARCH}.tar.gz"
     
     log_info "Загрузка Go компилятора ($GO_TAR)..."
-    curl -L -o /tmp/go.tar.gz "https://go.dev/dl/${GO_TAR}"
+    curl -L -o "$BUILD_DIR/go.tar.gz" "https://go.dev/dl/${GO_TAR}"
     
     log_info "Распаковка Go компилятора..."
-    mkdir -p /tmp/go_home
-    tar -C /tmp/go_home -xzf /tmp/go.tar.gz
+    mkdir -p "$BUILD_DIR/go_home"
+    tar -C "$BUILD_DIR/go_home" -xzf "$BUILD_DIR/go.tar.gz"
     
-    # Set Go environment
-    export GOROOT="/tmp/go_home/go"
-    export GOPATH="/tmp/gopath"
+    # Set Go environment to avoid using /tmp RAM disk
+    export GOROOT="$BUILD_DIR/go_home/go"
+    export GOPATH="$BUILD_DIR/gopath"
+    export GOCACHE="$BUILD_DIR/gocache"
+    export GOTMPDIR="$BUILD_DIR/gotmp"
+    mkdir -p "$GOPATH" "$GOCACHE" "$GOTMPDIR"
     export PATH="${GOROOT}/bin:${GOPATH}/bin:${PATH}"
     
     # Compile xcaddy and caddy
@@ -42,16 +48,16 @@ if [ ! -f "$BINARY_PATH" ]; then
     go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
     
     log_info "Компиляция Caddy с naive-плагином forwardproxy..."
-    cd /tmp
+    cd "$BUILD_DIR"
     xcaddy build --with github.com/caddyserver/forwardproxy=github.com/klzgrad/forwardproxy@naive
     
     # Install binary
-    mv /tmp/caddy "$BINARY_PATH"
+    mv "$BUILD_DIR/caddy" "$BINARY_PATH"
     chmod +x "$BINARY_PATH"
     
     # Purge Go compiler and cache to save space
     log_info "Очистка временных файлов сборки Go..."
-    rm -rf /tmp/go.tar.gz /tmp/go_home /tmp/gopath
+    rm -rf "$BUILD_DIR"
     log_info "Caddy успешно скомпилирован и установлен."
 fi
 
