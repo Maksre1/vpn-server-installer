@@ -57,6 +57,7 @@ After=network.target
 
 [Service]
 Type=simple
+RuntimeDirectory=mita
 ExecStart=$BINARY_PATH run
 Restart=always
 RestartSec=3
