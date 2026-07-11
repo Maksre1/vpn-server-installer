@@ -69,8 +69,22 @@ if [ -f "$CERT_PATH" ] && [ -f "$KEY_PATH" ]; then
     fi
 fi
 
-# Install standalone acme.sh tool
-pkg_install socat curl || true
+# Install cron, standalone acme.sh tool
+if [ "$PKG_MANAGER" = "apt" ]; then
+    pkg_install cron socat curl || true
+elif [ "$PKG_MANAGER" = "pacman" ]; then
+    pkg_install cronie socat curl || true
+elif [ "$PKG_MANAGER" = "apk" ]; then
+    pkg_install dcron socat curl || true
+else
+    pkg_install cronie crontabs socat curl || true
+fi
+
+# Enable and start cron
+if command -v systemctl >/dev/null; then
+    systemctl enable cron || systemctl enable cronie || true
+    systemctl start cron || systemctl start cronie || true
+fi
 
 # Install acme.sh
 ACME_HOME="/root/.acme.sh"

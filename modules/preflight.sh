@@ -58,23 +58,35 @@ pkg_update() {
 pkg_install() {
     local pkgs=("$@")
     log_info "Установка пакетов: ${pkgs[*]}"
-    case "$PKG_MANAGER" in
-        apt)
-            DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs[@]}"
-            ;;
-        dnf)
-            dnf install -y "${pkgs[@]}"
-            ;;
-        yum)
-            yum install -y "${pkgs[@]}"
-            ;;
-        pacman)
-            pacman -S --noconfirm --needed "${pkgs[@]}"
-            ;;
-        apk)
-            apk add "${pkgs[@]}"
-            ;;
-    esac
+    local success=false
+    for i in {1..20}; do
+        case "$PKG_MANAGER" in
+            apt)
+                DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs[@]}" && success=true || true
+                ;;
+            dnf)
+                dnf install -y "${pkgs[@]}" && success=true || true
+                ;;
+            yum)
+                yum install -y "${pkgs[@]}" && success=true || true
+                ;;
+            pacman)
+                pacman -S --noconfirm --needed "${pkgs[@]}" && success=true || true
+                ;;
+            apk)
+                apk add "${pkgs[@]}" && success=true || true
+                ;;
+        esac
+        if [ "$success" = "true" ]; then
+            break
+        fi
+        log_warn "Пакетный менеджер занят или произошла ошибка. Повтор через 5 секунд (попытка $i/20)..."
+        sleep 5
+    done
+    if [ "$success" != "true" ]; then
+        log_err "Не удалось установить пакеты: ${pkgs[*]}"
+        exit 1
+    fi
 }
 
 pkg_remove() {

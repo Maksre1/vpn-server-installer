@@ -72,8 +72,8 @@ systemctl enable --now mita
 
 # Wait for socket to become available
 log_info "Ожидание инициализации сокета управления mita..."
-for i in {1..10}; do
-    if [ -S /var/run/mita.sock ]; then
+for i in {1..20}; do
+    if [ -S /var/run/mita/mita.sock ] || [ -S /var/run/mita.sock ] || [ -S /run/mita/mita.sock ]; then
         break
     fi
     sleep 0.5
