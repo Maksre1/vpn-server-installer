@@ -96,7 +96,8 @@ elif command -v firewall-cmd >/dev/null && systemctl is-active --quiet firewalld
 fi
 
 # Clear iptables rules
-iptables-save | grep -v "vpn-panel" | iptables-restore || true
+if command -v iptables-save >/dev/null && command -v iptables-restore >/dev/null; then
+    iptables-save | grep -v "vpn-panel" | iptables-restore || true
+fi
 
 log_info "Удаление успешно завершено."
-EOF
