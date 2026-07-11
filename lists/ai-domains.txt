@@ -1,0 +1,26 @@
+# AI domains that require routing via Cloudflare WARP
+openai.com
+chatgpt.com
+oaistatic.com
+oaiusercontent.com
+anthropic.com
+claude.ai
+perplexity.ai
+midjourney.com
+sora.com
+gemini.google.com
+copilot.microsoft.com
+mistral.ai
+deepseek.com
+cohere.com
+huggingface.co
+tatsucreations.com
+tatsu.gg
+auth0.com
+cdn.auth0.com
+recaptcha.net
+hcaptcha.com
+arkoselabs.com
+sentry.io
+intercom.io
+intercomcdn.com

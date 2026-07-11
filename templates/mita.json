@@ -1,0 +1,22 @@
+{
+  "portBindings": [
+    {
+      "port": $PORT,
+      "protocol": "TCP"
+    },
+    {
+      "port": $PORT,
+      "protocol": "UDP"
+    }
+  ],
+  "users": [
+    {
+      "name": "$USERNAME",
+      "password": "$PASSWORD",
+      "allowPrivateIP": true,
+      "allowLoopbackIP": true
+    }
+  ],
+  "loggingLevel": "INFO",
+  "mtu": 1400
+}

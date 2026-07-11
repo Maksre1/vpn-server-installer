@@ -1,0 +1,13 @@
+# Go binaries
+/panel/vpn-panel
+/panel/vpn-panel-linux-*
+/panel/vpn-panel-test
+/panel/vpn-panel-*
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
+/var/log/*
+EOF

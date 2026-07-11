@@ -1,0 +1,25 @@
+listen: :$PORT
+tls:
+  cert: $CERT_PATH
+  key: $KEY_PATH
+auth:
+  type: password
+  password:
+    - "$PASSWORD"
+masquerade:
+  type: proxy
+  proxy:
+    url: https://www.bing.com
+    rewriteHost: true
+outbounds:
+  - name: direct
+    type: direct
+  - name: socks5
+    type: socks5
+    socks5:
+      addr: 127.0.0.1:1080
+acl:
+  inline:
+    - socks5(all)
+# Dynamic routing rules will be applied via the sing-box/warp gateway on the server
+# if we route everything through TUN mode. If not, the acl rules can route specific domains.

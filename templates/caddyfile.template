@@ -1,0 +1,9 @@
+:$PORT {
+    tls "$CERT_PATH" "$KEY_PATH"
+    forward_proxy {
+        basic_auth "$USERNAME" "$PASSWORD"
+        hide_ip
+        hide_via
+        probe_resistance
+    }
+}

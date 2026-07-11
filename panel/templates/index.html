@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель управления VPN</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div>
+                <h1>Панель управления VPN</h1>
+                <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Сервер: <span id="server-ip">{{.ServerIP}}</span></p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span class="badge">Сервер активен</span>
+                <a href="/logout" class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;">Выйти</a>
+            </div>
+        </header>
+
+        <!-- Gauges container -->
+        <div class="gauges-container">
+            <!-- CPU Gauge -->
+            <div class="gauge-card glass">
+                <span class="card-title">Загрузка CPU</span>
+                <div class="gauge-wrapper">
+                    <svg class="gauge-svg" viewBox="0 0 120 120">
+                        <circle class="gauge-bg" cx="60" cy="60" r="50"/>
+                        <circle class="gauge-fill" id="cpu-fill" cx="60" cy="60" r="50"/>
+                        <defs>
+                            <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#6366f1"/>
+                                <stop offset="100%" stop-color="#a855f7"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="gauge-value" id="cpu-val">0%</div>
+                </div>
+            </div>
+
+            <!-- RAM Gauge -->
+            <div class="gauge-card glass">
+                <span class="card-title">Память RAM</span>
+                <div class="gauge-wrapper">
+                    <svg class="gauge-svg" viewBox="0 0 120 120">
+                        <circle class="gauge-bg" cx="60" cy="60" r="50"/>
+                        <circle class="gauge-fill" id="ram-fill" cx="60" cy="60" r="50"/>
+                    </svg>
+                    <div class="gauge-value" id="ram-val">0%</div>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;" id="ram-details">0 / 0 MB</div>
+            </div>
+
+            <!-- Swap Gauge -->
+            <div class="gauge-card glass">
+                <span class="card-title">Подкачка Swap</span>
+                <div class="gauge-wrapper">
+                    <svg class="gauge-svg" viewBox="0 0 120 120">
+                        <circle class="gauge-bg" cx="60" cy="60" r="50"/>
+                        <circle class="gauge-fill" id="swap-fill" cx="60" cy="60" r="50"/>
+                    </svg>
+                    <div class="gauge-value" id="swap-val">0%</div>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;" id="swap-details">0 / 0 MB</div>
+            </div>
+
+            <!-- Disk Gauge -->
+            <div class="gauge-card glass">
+                <span class="card-title">Диск Disk</span>
+                <div class="gauge-wrapper">
+                    <svg class="gauge-svg" viewBox="0 0 120 120">
+                        <circle class="gauge-bg" cx="60" cy="60" r="50"/>
+                        <circle class="gauge-fill" id="disk-fill" cx="60" cy="60" r="50"/>
+                    </svg>
+                    <div class="gauge-value" id="disk-val">0%</div>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;" id="disk-details">0 / 0 GB</div>
+            </div>
+        </div>
+
+        <!-- Dashboard Widgets Grid -->
+        <div class="grid">
+            <!-- Services Status -->
+            <div class="card glass" style="grid-column: span 2;">
+                <span class="card-title">Статус Сервисов</span>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px;">
+                    <div style="padding: 15px; background: rgba(0,0,0,0.15); border-radius: 12px; border: 1px solid rgba(255,255,255,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="font-size: 16px;">Hysteria 2</strong>
+                            <span class="status-indicator" id="status-hysteria" style="width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted);"></span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Порт: <span id="port-hysteria">-</span> (UDP)</p>
+                    </div>
+                    <div style="padding: 15px; background: rgba(0,0,0,0.15); border-radius: 12px; border: 1px solid rgba(255,255,255,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="font-size: 16px;">Mieru</strong>
+                            <span class="status-indicator" id="status-mieru" style="width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted);"></span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Порт: <span id="port-mieru">-</span> (TCP/UDP)</p>
+                    </div>
+                    <div style="padding: 15px; background: rgba(0,0,0,0.15); border-radius: 12px; border: 1px solid rgba(255,255,255,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="font-size: 16px;">AnyTLS</strong>
+                            <span class="status-indicator" id="status-anytls" style="width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted);"></span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Порт: <span id="port-anytls">-</span> (TCP)</p>
+                    </div>
+                    <div style="padding: 15px; background: rgba(0,0,0,0.15); border-radius: 12px; border: 1px solid rgba(255,255,255,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="font-size: 16px;">NaiveProxy</strong>
+                            <span class="status-indicator" id="status-naive" style="width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted);"></span>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Порт: <span id="port-naive">-</span> (H2/TCP)</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 25px; padding: 15px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.1); border-radius: 12px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap: 12px;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM11 16H13V18H11V16ZM11 6H13V14H11V6Z" fill="var(--primary)"/>
+                        </svg>
+                        <div>
+                            <strong>Cloudflare WARP Tunnel</strong>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 2px;" id="warp-ip-row">Статус: проверяется...</p>
+                        </div>
+                    </div>
+                    <span class="badge" id="status-warp" style="background: rgba(99,102,241,0.1); color: var(--primary); border-color: rgba(99,102,241,0.2);">Загрузка</span>
+                </div>
+            </div>
+
+            <!-- Server details -->
+            <div class="card glass">
+                <span class="card-title">О сервере</span>
+                <div style="display: flex; flex-direction: column; gap: 15px; height:100%; justify-content:center;">
+                    <div class="info-row">
+                        <span class="info-label">Uptime</span>
+                        <span class="info-val" id="server-uptime">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Виртуализация</span>
+                        <span class="info-val">{{.Virt}}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Архитектура</span>
+                        <span class="info-val">{{.Arch}}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Всего трафика</span>
+                        <span class="info-val" id="traffic-total">0.00 GB</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted); display:flex; justify-content:space-between;">
+                        <span>Вход: <span id="traffic-in">0 MB</span></span>
+                        <span>Выход: <span id="traffic-out">0 MB</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Traffic graph and pie chart -->
+        <div class="grid" style="grid-template-columns: 2fr 1fr;">
+            <!-- Traffic history graph -->
+            <div class="card glass">
+                <span class="card-title">Использование сети (24ч)</span>
+                <div class="graph-container">
+                    <canvas id="traffic-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Protocol breakdown pie chart -->
+            <div class="card glass">
+                <span class="card-title">По протоколам</span>
+                <div class="graph-container">
+                    <canvas id="protocol-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subscription Links -->
+        <div class="section glass">
+            <div class="section-header">
+                <h3 class="section-title">Ссылки на подписки клиентов</h3>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Подписка Clash Verge Rev (mihomo core)</label>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Включает: Hysteria2, Mieru, AnyTLS (без NaiveProxy)</div>
+                <div class="copy-widget">
+                    <input class="form-input copy-input" type="text" id="clash-link" readonly value="https://{{.Domain}}:{{.Port}}/sub/clash/{{.Token}}">
+                    <button class="btn btn-secondary" onclick="copyLink('clash-link')">Копировать</button>
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 25px;">
+                <label class="form-label">Подписка sing-box / NekoBox</label>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Включает: Hysteria2, Mieru, AnyTLS, NaiveProxy (все 4 протокола нативно)</div>
+                <div class="copy-widget">
+                    <input class="form-input copy-input" type="text" id="singbox-link" readonly value="https://{{.Domain}}:{{.Port}}/sub/singbox/{{.Token}}">
+                    <button class="btn btn-secondary" onclick="copyLink('singbox-link')">Копировать</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration & Routing -->
+        <div class="section glass">
+            <div class="section-header">
+                <h3 class="section-title">Маршрутизация и WARP на сервере</h3>
+            </div>
+
+            <form action="/save-settings" method="POST">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 25px; padding: 15px; background: rgba(255,255,255,0.01); border: 1px solid var(--card-border); border-radius:12px;">
+                    <div>
+                        <strong style="display:block; font-size:16px;">Перенаправлять весь трафик VPS через WARP</strong>
+                        <span style="font-size:13px; color:var(--text-muted);">Включено: весь исходящий трафик сервера идет через WARP. Отключено: только выбранные домены ниже.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="warp_global" id="warp-global-toggle" {{if .WarpGlobal}}checked{{endif}}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Прямое подключение (DIRECT) — домены в обход VPN (один на строку)</label>
+                    <textarea class="form-input" name="direct_list" rows="8" style="font-family: monospace; font-size: 13px; resize: vertical;" placeholder="Пример: yandex.ru">{{.DirectList}}</textarea>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label class="form-label">Принудительно через WARP — домены (один на строку)</label>
+                    <textarea class="form-input" name="warp_list" rows="8" style="font-family: monospace; font-size: 13px; resize: vertical;" placeholder="Пример: openai.com">{{.WarpList}}</textarea>
+                </div>
+
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="submit" class="btn">Сохранить настройки</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Account Settings -->
+        <div class="section glass">
+            <div class="section-header">
+                <h3 class="section-title">Настройки администратора</h3>
+            </div>
+            <form action="/change-password" method="POST" style="max-width: 500px;">
+                <div class="form-group">
+                    <label class="form-label" for="old_password">Текущий пароль</label>
+                    <input class="form-input" type="password" id="old_password" name="old_password" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="new_password">Новый пароль</label>
+                    <input class="form-input" type="password" id="new_password" name="new_password" required minlength="8">
+                </div>
+                <button type="submit" class="btn">Изменить пароль</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Copy link helper
+        function copyLink(id) {
+            var copyText = document.getElementById(id);
+            copyText.select();
+            copyText.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(copyText.value);
+            alert("Ссылка скопирована в буфер обмена!");
+        }
+
+        // Setup Charts
+        var ctxTraffic = document.getElementById('traffic-chart').getContext('2d');
+        var trafficChart = new Chart(ctxTraffic, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Входящий (MB/s)',
+                    data: [],
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.05)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'Исходящий (MB/s)',
+                    data: [],
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168, 85, 247, 0.05)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, labels: { color: '#94a3b8' } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255, 255, 255, 0.03)' }, ticks: { color: '#94a3b8' } },
+                    y: { grid: { color: 'rgba(255, 255, 255, 0.03)' }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+
+        var ctxProto = document.getElementById('protocol-chart').getContext('2d');
+        var protocolChart = new Chart(ctxProto, {
+            type: 'doughnut',
+            data: {
+                labels: ['Hysteria 2', 'Mieru', 'AnyTLS', 'NaiveProxy'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#6366f1', '#a855f7', '#ec4899', '#10b981'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12 } }
+                }
+            }
+        });
+
+        // Metrics polling function
+        function updateMetrics() {
+            fetch('/api/metrics')
+                .then(response => response.json())
+                .then(data => {
+                    // Update Gauges
+                    updateGauge('cpu', data.CPU);
+                    updateGauge('ram', data.RAMPercent, `${Math.round(data.RAMUsed / 1024 / 1024)} / ${Math.round(data.RAMTotal / 1024 / 1024)} MB`);
+                    updateGauge('swap', data.SwapPercent, `${Math.round(data.SwapUsed / 1024 / 1024)} / ${Math.round(data.SwapTotal / 1024 / 1024)} MB`);
+                    updateGauge('disk', data.DiskPercent, `${Math.round(data.DiskUsed / 1024 / 1024 / 1024)} / ${Math.round(data.DiskTotal / 1024 / 1024 / 1024)} GB`);
+
+                    // Update Server Info
+                    document.getElementById('server-uptime').innerText = data.Uptime;
+                    document.getElementById('traffic-total').innerText = (data.TrafficTotal / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+                    document.getElementById('traffic-in').innerText = Math.round(data.TrafficIn / 1024 / 1024) + ' MB';
+                    document.getElementById('traffic-out').innerText = Math.round(data.TrafficOut / 1024 / 1024) + ' MB';
+
+                    // Update Services Status
+                    updateServiceStatus('hysteria', data.Services.Hysteria2.Active, data.Services.Hysteria2.Port);
+                    updateServiceStatus('mieru', data.Services.Mieru.Active, data.Services.Mieru.Port);
+                    updateServiceStatus('anytls', data.Services.AnyTLS.Active, data.Services.AnyTLS.Port);
+                    updateServiceStatus('naive', data.Services.NaiveProxy.Active, data.Services.NaiveProxy.Port);
+
+                    // Update WARP Status
+                    var warpIndicator = document.getElementById('status-warp');
+                    var warpIPText = document.getElementById('warp-ip-row');
+                    if (data.Services.WARP.Active) {
+                        warpIndicator.className = "badge";
+                        warpIndicator.style.background = "rgba(16, 185, 129, 0.1)";
+                        warpIndicator.style.color = "var(--success)";
+                        warpIndicator.style.borderColor = "rgba(16, 185, 129, 0.2)";
+                        warpIndicator.innerText = "Подключен";
+                        warpIPText.innerText = "WARP IP: " + data.Services.WARP.IP + " (Задержка: " + data.Services.WARP.Latency + " ms)";
+                    } else {
+                        warpIndicator.className = "badge";
+                        warpIndicator.style.background = "rgba(239, 68, 68, 0.1)";
+                        warpIndicator.style.color = "var(--danger)";
+                        warpIndicator.style.borderColor = "rgba(239, 68, 68, 0.2)";
+                        warpIndicator.innerText = "Отключен";
+                        warpIPText.innerText = "Интерфейс WARP не запущен";
+                    }
+
+                    // Update Charts
+                    if (data.History && data.History.Labels) {
+                        trafficChart.data.labels = data.History.Labels;
+                        trafficChart.data.datasets[0].data = data.History.InRates;
+                        trafficChart.data.datasets[1].data = data.History.OutRates;
+                        trafficChart.update();
+                    }
+
+                    protocolChart.data.datasets[0].data = [
+                        data.Services.Hysteria2.Traffic / 1024 / 1024,
+                        data.Services.Mieru.Traffic / 1024 / 1024,
+                        data.Services.AnyTLS.Traffic / 1024 / 1024,
+                        data.Services.NaiveProxy.Traffic / 1024 / 1024
+                    ];
+                    protocolChart.update();
+                });
+        }
+
+        function updateGauge(id, percent, details) {
+            var fill = document.getElementById(id + '-fill');
+            var val = document.getElementById(id + '-val');
+            var detailsEl = document.getElementById(id + '-details');
+
+            var offset = 314 - (314 * percent / 100);
+            fill.style.strokeDashoffset = offset;
+            val.innerText = Math.round(percent) + '%';
+
+            if (details && detailsEl) {
+                detailsEl.innerText = details;
+            }
+        }
+
+        function updateServiceStatus(id, active, port) {
+            var indicator = document.getElementById('status-' + id);
+            var portEl = document.getElementById('port-' + id);
+            if (active) {
+                indicator.style.background = "var(--success)";
+                indicator.style.boxShadow = "0 0 10px rgba(16, 185, 129, 0.5)";
+            } else {
+                indicator.style.background = "var(--danger)";
+                indicator.style.boxShadow = "none";
+            }
+            if (port && portEl) {
+                portEl.innerText = port;
+            }
+        }
+
+        // Initial update and interval
+        updateMetrics();
+        setInterval(updateMetrics, 3000);
+    </script>
+</body>
+</html>
