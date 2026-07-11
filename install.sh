@@ -4,24 +4,30 @@ set -eo pipefail
 # Check if running in a directory without modules/
 SCRIPT_DIR=$(dirname "$0")
 if [ ! -d "$SCRIPT_DIR/modules" ] || [ ! -f "$SCRIPT_DIR/modules/preflight.sh" ]; then
-    echo -e "\033[32m[INFO]\033[0m Скрипт запущен удаленно. Скачивание структуры проекта с GitHub..."
-    TEMP_DIR=$(mktemp -d -t vpn-installer-XXXXXX)
+    echo -e "\033[32m[INFO]\033[0m Скрипт запущен удаленно. Подготовка окружения..."
     
-    if command -v git >/dev/null; then
-        git clone https://github.com/Maksre1/vpn-server-installer.git "$TEMP_DIR" >/dev/null 2>&1
-    else
-        # Try curl / wget zip
-        if command -v curl >/dev/null; then
-            curl -L -s -o "$TEMP_DIR/archive.zip" "https://github.com/Maksre1/vpn-server-installer/archive/refs/heads/master.zip"
+    # Install git automatically if missing
+    if ! command -v git >/dev/null; then
+        echo -e "\033[33m[WARN]\033[0m Git не обнаружен. Автоматическая установка git..."
+        if command -v apt-get >/dev/null; then
+            apt-get update -y && DEBIAN_FRONTEND=noninteractive apt-get install -y git
+        elif command -v dnf >/dev/null; then
+            dnf install -y git
+        elif command -v yum >/dev/null; then
+            yum install -y git
+        elif command -v pacman >/dev/null; then
+            pacman -S --noconfirm git
+        elif command -v apk >/dev/null; then
+            apk add git
         else
-            wget -q -O "$TEMP_DIR/archive.zip" "https://github.com/Maksre1/vpn-server-installer/archive/refs/heads/master.zip"
-        fi
-        unzip -q -o "$TEMP_DIR/archive.zip" -d "$TEMP_DIR"
-        SUBFOLDER=$(find "$TEMP_DIR" -maxdepth 1 -type d -name "vpn-server-installer-*" | head -n 1)
-        if [ -n "$SUBFOLDER" ]; then
-            cp -r "$SUBFOLDER/"* "$TEMP_DIR/"
+            echo -e "\033[31m[ERROR]\033[0m Не удалось определить пакетный менеджер для установки git." >&2
+            exit 1
         fi
     fi
+    
+    echo -e "\033[32m[INFO]\033[0m Скачивание полной структуры проекта с GitHub..."
+    TEMP_DIR=$(mktemp -d -t vpn-installer-XXXXXX)
+    git clone https://github.com/Maksre1/vpn-server-installer.git "$TEMP_DIR" >/dev/null 2>&1
     
     cd "$TEMP_DIR"
     exec bash install.sh "$@"
