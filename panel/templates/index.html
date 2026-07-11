@@ -247,15 +247,12 @@
                     <!-- Simple Mode Settings Container -->
                     <div id="warp-simple-mode" class="max-w-2xl mx-auto mt-6">
                         <!-- Centered Premium Info Banner -->
-                        <div id="warp-info-banner-card" class="relative overflow-hidden border border-zinc-800 bg-[#09090b]/40 rounded-xl p-8 flex flex-col items-center text-center mb-8 transition-all duration-300 hover:border-emerald-950/50 hover:bg-emerald-950/[0.01]">
-                            <!-- Soft glow background -->
-                            <div id="warp-info-banner-glow" class="absolute -top-24 w-80 h-80 rounded-full bg-emerald-500/[0.02] blur-3xl pointer-events-none"></div>
-
-                            <div id="warp-status-icon-container" class="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 mb-6 shrink-0 select-none">
-                                <svg id="warp-status-svg-active" class="w-8 h-8 text-emerald-500 animate-pulse" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <div id="warp-info-banner-card" class="relative overflow-hidden border rounded-xl p-8 flex flex-col items-center text-center mb-8 transition-colors" style="background: var(--bg-raised); border-color: var(--border);">
+                            <div id="warp-status-icon-container" class="w-14 h-14 rounded-full flex items-center justify-center mb-5 shrink-0 select-none" style="background: var(--accent-dim); border: 1px solid rgba(16,185,129,0.2);">
+                                <svg id="warp-status-svg-active" class="w-7 h-7" style="color: var(--accent);" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                                 </svg>
-                                <svg id="warp-status-svg-inactive" class="w-8 h-8 text-rose-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <svg id="warp-status-svg-inactive" class="w-7 h-7 hidden" style="color: var(--danger);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </div>
@@ -1052,7 +1049,6 @@
                     // Update WARP banner status dynamically
                     const isWarpActive = data.Services && data.Services.WARP && data.Services.WARP.active;
                     const warpCard = document.getElementById('warp-info-banner-card');
-                    const warpGlow = document.getElementById('warp-info-banner-glow');
                     const iconContainer = document.getElementById('warp-status-icon-container');
                     const svgActive = document.getElementById('warp-status-svg-active');
                     const svgInactive = document.getElementById('warp-status-svg-inactive');
@@ -1060,21 +1056,23 @@
 
                     if (warpCard) {
                         if (isWarpActive) {
-                            warpCard.className = "relative overflow-hidden border border-zinc-800 bg-[#09090b]/40 rounded-xl p-8 flex flex-col items-center text-center mb-8 transition-all duration-300 hover:border-emerald-950/50 hover:bg-emerald-950/[0.01]";
-                            warpGlow.className = "absolute -top-24 w-80 h-80 rounded-full bg-emerald-500/[0.02] blur-3xl pointer-events-none";
-                            iconContainer.className = "w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 mb-6 shrink-0 select-none";
+                            warpCard.style.borderColor = 'var(--border)';
+                            warpCard.style.background = 'var(--bg-raised)';
+                            iconContainer.style.background = 'var(--accent-dim)';
+                            iconContainer.style.borderColor = 'rgba(16,185,129,0.2)';
                             svgActive.classList.remove('hidden');
                             svgInactive.classList.add('hidden');
                             statusTitle.innerText = "Cloudflare WARP активен";
-                            statusTitle.className = "text-lg font-semibold text-zinc-100 tracking-wide";
+                            statusTitle.style.color = 'var(--text)';
                         } else {
-                            warpCard.className = "relative overflow-hidden border border-rose-900/30 bg-rose-950/[0.02] rounded-xl p-8 flex flex-col items-center text-center mb-8 transition-all duration-300 hover:border-rose-800/40";
-                            warpGlow.className = "absolute -top-24 w-80 h-80 rounded-full bg-rose-500/[0.01] blur-3xl pointer-events-none";
-                            iconContainer.className = "w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center border border-rose-500/20 mb-6 shrink-0 select-none";
+                            warpCard.style.borderColor = 'rgba(239,68,68,0.2)';
+                            warpCard.style.background = 'var(--danger-dim)';
+                            iconContainer.style.background = 'var(--danger-dim)';
+                            iconContainer.style.borderColor = 'rgba(239,68,68,0.2)';
                             svgActive.classList.add('hidden');
                             svgInactive.classList.remove('hidden');
                             statusTitle.innerText = "Cloudflare WARP не активен";
-                            statusTitle.className = "text-lg font-semibold text-rose-400 tracking-wide";
+                            statusTitle.style.color = 'var(--danger)';
                         }
                     }
 
@@ -1087,19 +1085,16 @@
                         let statusColor, statusDotClass, statusText, statusTooltip;
                         if (info.active) {
                             if (info.warning) {
-                                statusColor = 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]';
-                                statusDotClass = 'bg-amber-500';
+                                statusColor = 'bg-amber-500';
                                 statusText = 'Предупреждение';
                                 statusTooltip = 'Предупреждение';
                             } else {
-                                statusColor = 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
-                                statusDotClass = 'bg-emerald-500';
+                                statusColor = 'bg-emerald-500';
                                 statusText = 'Активен';
                                 statusTooltip = 'Активен';
                             }
                         } else {
-                            statusColor = 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]';
-                            statusDotClass = 'bg-rose-500';
+                            statusColor = 'bg-rose-500';
                             statusText = 'Офлайн';
                             statusTooltip = 'Ошибка';
                         }
@@ -1536,10 +1531,10 @@
                 
                 const saveBtns = document.querySelectorAll('button[type="submit"]');
                 saveBtns.forEach(btn => {
-                    btn.classList.add('ring-2', 'ring-emerald-500', 'animate-pulse');
+                    btn.style.boxShadow = '0 0 0 2px var(--accent)';
                     setTimeout(() => {
-                        btn.classList.remove('ring-2', 'ring-emerald-500', 'animate-pulse');
-                    }, 5000);
+                        btn.style.boxShadow = '';
+                    }, 3000);
                 });
             }
         }
@@ -2000,10 +1995,10 @@
             
             const saveBtns = document.querySelectorAll('button[type="submit"]');
             saveBtns.forEach(btn => {
-                btn.classList.add('ring-2', 'ring-emerald-500', 'animate-pulse');
+                btn.style.boxShadow = '0 0 0 2px var(--accent)';
                 setTimeout(() => {
-                    btn.classList.remove('ring-2', 'ring-emerald-500', 'animate-pulse');
-                }, 5000);
+                    btn.style.boxShadow = '';
+                }, 3000);
             });
         }
 
@@ -2063,7 +2058,7 @@
 
     <!-- Protocol Settings Modal -->
     <div id="protocol-modal" onclick="if(event.target === this) closeProtocolSettings()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-md transform scale-95 transition-transform duration-300 shadow-2xl" id="protocol-modal-content">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-md transform scale-95 transition-transform duration-200" id="protocol-modal-content">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-lg font-semibold text-zinc-100 tracking-wide" id="protocol-modal-title">Настройки</h3>
                 <button type="button" class="text-zinc-500 hover:text-zinc-300" onclick="closeProtocolSettings()">
@@ -2124,7 +2119,7 @@
 
     <!-- QR Code Modal -->
     <div id="qr-modal" onclick="if(event.target === this) closeQRModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-sm transform scale-95 transition-transform duration-300 shadow-2xl" id="qr-modal-content">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-sm transform scale-95 transition-transform duration-300 " id="qr-modal-content">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-lg font-semibold text-zinc-100 tracking-wide" id="qr-modal-title">QR Code</h3>
                 <button type="button" class="text-zinc-500 hover:text-zinc-300" onclick="closeQRModal()">
@@ -2135,7 +2130,7 @@
             <div class="relative group cursor-pointer flex flex-col items-center justify-center bg-white p-4 rounded-lg mx-auto" onclick="copyQRValue()" style="width: 220px; height: 220px;">
                 <canvas id="qr-canvas"></canvas>
                 <div class="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-lg">
-                    <span class="text-zinc-100 text-xs font-semibold select-none flex items-center gap-1.5 bg-[#09090b] border border-zinc-800 px-3 py-1.5 rounded-md shadow-lg">
+                    <span class="text-zinc-100 text-xs font-semibold select-none flex items-center gap-1.5 border px-3 py-1.5 rounded-md" style="background: var(--bg-raised); border-color: var(--border);">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
                         Копировать
                     </span>
@@ -2150,7 +2145,7 @@
 
     <!-- Proton Config Modal -->
     <div id="proton-modal" onclick="if(event.target === this) closeProtonModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300 shadow-2xl" id="proton-modal-content">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300 " id="proton-modal-content">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold text-zinc-100 tracking-wide">Конфигурация Proton VPN</h3>
                 <button type="button" class="text-zinc-500 hover:text-zinc-300" onclick="closeProtonModal()">
@@ -2175,7 +2170,7 @@
 
     <!-- Domain Routes Modal -->
     <div id="domain-routes-modal" onclick="if(event.target === this) closeDomainRoutesModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-2xl transform scale-95 transition-transform duration-300 shadow-2xl flex flex-col max-h-[90vh]" id="domain-routes-modal-content">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-2xl transform scale-95 transition-transform duration-300  flex flex-col max-h-[90vh]" id="domain-routes-modal-content">
             <div class="flex justify-between items-center mb-4 pb-3 border-b border-zinc-800/80">
                 <div>
                     <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-100">Маршрутизация доменов</h3>
@@ -2246,7 +2241,7 @@
 
     <!-- Help Modal for WARP & Proton -->
     <div id="warp-help-modal" onclick="if(event.target === this) closeWarpHelpModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300 shadow-2xl flex flex-col" id="warp-help-modal-content">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300  flex flex-col" id="warp-help-modal-content">
             <div class="flex justify-between items-center mb-4 pb-3 border-b border-zinc-800/80">
                 <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
                     <span>💡</span> Как это устроено?
@@ -2294,7 +2289,7 @@
 
     <!-- Advanced Mode Warning Modal -->
     <div id="advanced-warning-modal" onclick="if(event.target === this) closeAdvancedWarningModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300 shadow-2xl flex flex-col" id="advanced-warning-modal-content">
+        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300  flex flex-col" id="advanced-warning-modal-content">
             <div class="flex justify-between items-center mb-5 pb-3 border-b border-zinc-800/80">
                 <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
                     <span>⚡</span> Расширенный режим
