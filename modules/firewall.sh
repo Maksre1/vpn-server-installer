@@ -50,6 +50,19 @@ open_port_tcp "$NAIVE_PORT"
 
 log_info "Порты успешно открыты в брандмауэре."
 
+# 1.5. Enable TCP MSS Clamping to prevent MTU/fragmentation issues for TCP protocols (like AnyTLS)
+log_info "Настройка TCP MSS Clamping для предотвращения проблем с фрагментацией пакетов..."
+pkg_install iptables iptables-persistent || true
+if command -v iptables >/dev/null; then
+    if ! iptables -t mangle -C POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1200 >/dev/null 2>&1; then
+        iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1200 || true
+    fi
+    if command -v netfilter-persistent >/dev/null; then
+        netfilter-persistent save || true
+    fi
+    log_info "MSS Clamping применен (значение: 1200)."
+fi
+
 # 2. Add traffic accounting rules in iptables
 add_accounting_rule() {
     local port="$1"

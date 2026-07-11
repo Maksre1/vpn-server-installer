@@ -96,6 +96,12 @@ elif command -v firewall-cmd >/dev/null && systemctl is-active --quiet firewalld
 fi
 
 # Clear iptables rules
+if command -v iptables >/dev/null; then
+    iptables -t mangle -D POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1200 >/dev/null 2>&1 || true
+fi
+if command -v netfilter-persistent >/dev/null; then
+    netfilter-persistent save || true
+fi
 if command -v iptables-save >/dev/null && command -v iptables-restore >/dev/null; then
     iptables-save | grep -v "vpn-panel" | iptables-restore || true
 fi
