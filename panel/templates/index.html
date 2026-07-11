@@ -987,6 +987,8 @@
                         const lastIn = data.History.InRates[len-1] || 0;
                         const lastOut = data.History.OutRates[len-1] || 0;
                         document.getElementById('net-rate-val').innerText = `↓ ${lastIn.toFixed(1)} ↑ ${lastOut.toFixed(1)} MB/s`;
+                    }
+                    
                     // Update WARP banner status dynamically
                     const isWarpActive = data.WARP && data.WARP.Active;
                     const warpCard = document.getElementById('warp-info-banner-card');
@@ -2158,8 +2160,11 @@
                 <button type="button" class="px-4 py-2.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors font-semibold cursor-pointer" onclick="confirmAdvancedMode()">
                     Всё равно перейти
                 </button>
-                <button type="button" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-bold rounded-lg text-xs transition-colors cursor-pointer" onclick="closeAdvancedWarningModal()">
-                    ◀️ В обычные настройки
+                <button type="button" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-bold rounded-lg text-xs transition-all cursor-pointer flex items-center gap-2" onclick="closeAdvancedWarningModal()">
+                    <svg class="w-4 h-4 text-zinc-100" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span>В обычные настройки</span>
                 </button>
             </div>
         </div>
