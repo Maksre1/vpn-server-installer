@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{if .ForceReset}}Смена пароля — VPN Панель{{else}}Вход — VPN Панель{{endif}}</title>
+    <title>{{if .ForceReset}}Смена пароля — VPN Панель{{else}}Вход — VPN Панель{{end}}</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -25,16 +25,16 @@
                 {{else}}
                 <h2>Вход в панель</h2>
                 <p style="color: var(--text-muted); font-size: 14px; margin-top: 8px;">Введите учетные данные администратора</p>
-                {{endif}}
+                {{end}}
             </div>
 
             {{if .Error}}
             <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--danger); padding: 12px; border-radius: 12px; font-size: 14px; margin-bottom: 20px; text-align: center;">
                 {{.Error}}
             </div>
-            {{endif}}
+            {{end}}
 
-            <form action="{{if .ForceReset}}/reset-password{{else}}/login{{endif}}" method="POST">
+            <form action="{{if .ForceReset}}/reset-password{{else}}/login{{end}}" method="POST">
                 {{if .ForceReset}}
                 <div class="form-group">
                     <label class="form-label" for="new_password">Новый пароль</label>
@@ -55,7 +55,7 @@
                     <input class="form-input" type="password" id="password" name="password" required placeholder="Введите пароль">
                 </div>
                 <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Войти</button>
-                {{endif}}
+                {{end}}
             </form>
         </div>
     </div>
