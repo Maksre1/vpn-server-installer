@@ -228,7 +228,6 @@
                             
                             <div class="flex items-center gap-2 mb-3">
                                 <h3 id="warp-status-title" class="text-lg font-bold text-zinc-100 tracking-wide">Cloudflare WARP активен</h3>
-                                <span id="warp-status-badge" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase px-2 py-0.5 rounded-md tracking-wider select-none hidden">Подключен</span>
                             </div>
                             
                             <div class="text-sm text-zinc-400 space-y-4 leading-relaxed max-w-lg mb-8">
@@ -997,7 +996,6 @@
                     const svgActive = document.getElementById('warp-status-svg-active');
                     const svgInactive = document.getElementById('warp-status-svg-inactive');
                     const statusTitle = document.getElementById('warp-status-title');
-                    const statusBadge = document.getElementById('warp-status-badge');
 
                     if (warpCard) {
                         if (isWarpActive) {
@@ -1008,9 +1006,6 @@
                             svgInactive.classList.add('hidden');
                             statusTitle.innerText = "Cloudflare WARP активен";
                             statusTitle.className = "text-lg font-bold text-zinc-100 tracking-wide";
-                            statusBadge.className = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase px-2 py-0.5 rounded-md tracking-wider select-none";
-                            statusBadge.innerText = "Подключен";
-                            statusBadge.classList.remove('hidden');
                         } else {
                             warpCard.className = "relative overflow-hidden border border-rose-900/30 bg-rose-950/[0.02] rounded-xl p-8 flex flex-col items-center text-center mb-8 transition-all duration-300 hover:border-rose-800/40";
                             warpGlow.className = "absolute -top-24 w-80 h-80 rounded-full bg-rose-500/[0.01] blur-3xl pointer-events-none";
@@ -1019,9 +1014,6 @@
                             svgInactive.classList.remove('hidden');
                             statusTitle.innerText = "Cloudflare WARP не активен";
                             statusTitle.className = "text-lg font-bold text-rose-400 tracking-wide";
-                            statusBadge.className = "bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] font-bold uppercase px-2 py-0.5 rounded-md tracking-wider select-none";
-                            statusBadge.innerText = "Отключен";
-                            statusBadge.classList.remove('hidden');
                         }
                     }
 
