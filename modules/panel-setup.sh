@@ -178,4 +178,3 @@ systemctl enable --now vpn-panel
 
 log_info "Веб-панель управления успешно запущена на порту $PANEL_PORT."
 export PANEL_TOKEN="$TOKEN"
-EOF

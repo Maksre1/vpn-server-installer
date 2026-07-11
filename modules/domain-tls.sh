@@ -130,4 +130,3 @@ fi
 
 # Export parameters
 export TARGET_DOMAIN CERT_PATH KEY_PATH CRAFT_SELF_SIGNED
-EOF

@@ -116,4 +116,3 @@ log_info "Caddy/NaiveProxy запущен и добавлен в автозаг�
 export NAIVE_PORT="$PORT"
 export NAIVE_USER="$USERNAME"
 export NAIVE_PASSWORD="$PASSWORD"
-EOF

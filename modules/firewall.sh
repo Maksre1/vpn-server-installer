@@ -104,4 +104,3 @@ if command -v systemctl >/dev/null; then
     systemctl restart fail2ban || true
     log_info "Fail2ban успешно перезапущен и настроен."
 fi
-EOF

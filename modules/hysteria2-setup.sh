@@ -81,4 +81,3 @@ log_info "Hysteria 2 запущен и добавлен в автозагруз�
 # Export variables for panel
 export HYSTERIA_PORT="$PORT"
 export HYSTERIA_PASSWORD="$PASSWORD"
-EOF

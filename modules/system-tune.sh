@@ -100,4 +100,3 @@ DNSOverTLS=yes
 EOF
     systemctl restart systemd-resolved || true
 fi
-EOF

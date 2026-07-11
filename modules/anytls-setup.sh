@@ -72,4 +72,3 @@ log_info "AnyTLS запущен и добавлен в автозагрузку.
 # Export variables for panel
 export ANYTLS_PORT="$PORT"
 export ANYTLS_PASSWORD="$PASSWORD"
-EOF

@@ -84,4 +84,3 @@ EOF
 # Clean up /tmp
 rm -f wgcf-account.toml wgcf-profile.conf
 log_info "WARP успешно настроен в пользовательском режиме (userspace via sing-box)."
-EOF

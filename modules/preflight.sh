@@ -171,4 +171,3 @@ fi
 
 # Export shared variables for subsequent modules
 export ARCH_TYPE PKG_MANAGER
-EOF

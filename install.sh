@@ -303,4 +303,3 @@ clear
 cat "$ACCESS_FILE"
 log_info "Лог установки сохранен в $LOG_FILE"
 log_info "Данные доступа к панели сохранены в $ACCESS_FILE"
-EOF
