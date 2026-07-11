@@ -50,7 +50,7 @@ log_err() {
     echo -e "\033[31m[ERROR]\033[0m $1" >&2
 }
 
-clear
+clear || true
 echo -e "\033[35m"
 echo "============================================="
 echo "       VPN MULTI-PROTOCOL SERVER INSTALLER   "
