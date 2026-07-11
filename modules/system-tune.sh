@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Import preflight logger helpers
-. "$(dirname "$0")/preflight.sh"
+. "$(dirname "$0")/modules/preflight.sh"
 
 VIRT=$(systemd-detect-virt || echo "none")
 

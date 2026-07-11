@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-. "$(dirname "$0")/preflight.sh"
+. "$(dirname "$0")/modules/preflight.sh"
 
 PANEL_PORT="${PANEL_PORT:-8080}"
 HYSTERIA_PORT="${HYSTERIA_PORT:-0}"

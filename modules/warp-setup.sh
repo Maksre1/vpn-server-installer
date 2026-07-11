@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-. "$(dirname "$0")/preflight.sh"
+. "$(dirname "$0")/modules/preflight.sh"
 
 CONF_DIR="/etc/vpn-protocols"
 mkdir -p "$CONF_DIR"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-. "$(dirname "$0")/preflight.sh"
+. "$(dirname "$0")/modules/preflight.sh"
 
 # Input params (usually passed as environment variables)
 # DOMAIN: Custom user domain or empty
