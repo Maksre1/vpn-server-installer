@@ -100,4 +100,7 @@ if command -v iptables-save >/dev/null && command -v iptables-restore >/dev/null
     iptables-save | grep -v "vpn-panel" | iptables-restore || true
 fi
 
+# Clear temporary installer files
+rm -rf /tmp/go.tar.gz /tmp/go_home /tmp/gopath /tmp/vpn-installer-* /tmp/singbox.tar.gz /tmp/mita.tar.gz /tmp/anytls.zip /tmp/anytls_bin /tmp/checksums.txt
+
 log_info "Удаление успешно завершено."

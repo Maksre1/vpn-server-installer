@@ -3,6 +3,8 @@ set -euo pipefail
 
 . "$(dirname "$0")/modules/preflight.sh"
 
+pkg_install jq || true
+
 CONF_DIR="/etc/vpn-protocols"
 mkdir -p "$CONF_DIR"
 
