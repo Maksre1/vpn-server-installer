@@ -144,7 +144,7 @@
                     </div>
 
                     <!-- Uptime and Network Bar -->
-                    <div class="flex flex-wrap items-center justify-between py-4 px-5 mb-10 border border-zinc-800 bg-transparent rounded-xl" style="border-color: var(--card-border);">
+                    <div class="flex flex-wrap items-center justify-between py-4 px-5 mb-10 border rounded-xl" style="border-color: var(--border); background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, var(--bg-raised) 50%); box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.015) inset;">
                         <div class="flex items-center gap-4">
                             <span class="text-xs uppercase tracking-[0.08em] text-[#6B7280] font-medium">⏱️ Время работы</span>
                             <span class="font-mono text-sm text-zinc-100" id="uptime-val">--</span>
@@ -173,7 +173,7 @@
                         <h2 class="text-xs uppercase tracking-[0.08em] text-[#6B7280] font-medium mb-4">Подключение устройств</h2>
                         <div class="flex flex-col gap-4">
                             <!-- Clash -->
-                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-xl gap-4" style="border-color: var(--card-border);">
+                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border rounded-xl gap-4" style="border-color: var(--border); background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, var(--bg-raised) 50%); box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.015) inset;">
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span class="font-semibold text-zinc-200 tracking-wide" style="font-size: 18px;">Clash Verge / Clash Meta</span>
@@ -195,7 +195,7 @@
                                 </div>
                             </div>
                             <!-- Sing-Box -->
-                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-xl gap-4" style="border-color: var(--card-border);">
+                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border rounded-xl gap-4" style="border-color: var(--border); background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, var(--bg-raised) 50%); box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.015) inset;">
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span class="font-semibold text-zinc-200 tracking-wide" style="font-size: 18px;">Sing-Box / Nekobox</span>
@@ -217,7 +217,7 @@
                                 </div>
                             </div>
                             <!-- Universal -->
-                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border border-zinc-800 bg-transparent rounded-xl gap-4" style="border-color: var(--card-border);">
+                            <div class="flex flex-wrap items-center justify-between py-3 px-4 border rounded-xl gap-4" style="border-color: var(--border); background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, var(--bg-raised) 50%); box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.015) inset;">
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span class="font-semibold text-zinc-200 tracking-wide" style="font-size: 18px;">Универсальный (Happ / INCY)</span>
@@ -247,7 +247,7 @@
                     <!-- Simple Mode Settings Container -->
                     <div id="warp-simple-mode" class="max-w-2xl mx-auto mt-6">
                         <!-- Centered Premium Info Banner -->
-                        <div id="warp-info-banner-card" class="relative overflow-hidden border rounded-xl p-8 flex flex-col items-center text-center mb-8 transition-colors" style="background: var(--bg-raised); border-color: var(--border);">
+                        <div id="warp-info-banner-card" class="relative overflow-hidden border rounded-xl p-8 flex flex-col items-center text-center mb-8" style="background: linear-gradient(180deg, rgba(255,255,255,0.035) 0%, var(--bg-raised) 40%); border-color: var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.02) inset;">
                             <div id="warp-status-icon-container" class="w-14 h-14 rounded-full flex items-center justify-center mb-5 shrink-0 select-none" style="background: var(--accent-dim); border: 1px solid rgba(16,185,129,0.2);">
                                 <svg id="warp-status-svg-active" class="w-7 h-7" style="color: var(--accent);" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
@@ -1057,7 +1057,7 @@
                     if (warpCard) {
                         if (isWarpActive) {
                             warpCard.style.borderColor = 'var(--border)';
-                            warpCard.style.background = 'var(--bg-raised)';
+                            warpCard.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.035) 0%, var(--bg-raised) 40%)';
                             iconContainer.style.background = 'var(--accent-dim)';
                             iconContainer.style.borderColor = 'rgba(16,185,129,0.2)';
                             svgActive.classList.remove('hidden');
@@ -1066,7 +1066,7 @@
                             statusTitle.style.color = 'var(--text)';
                         } else {
                             warpCard.style.borderColor = 'rgba(239,68,68,0.2)';
-                            warpCard.style.background = 'var(--danger-dim)';
+                            warpCard.style.background = 'linear-gradient(180deg, rgba(239,68,68,0.06) 0%, var(--bg-raised) 40%)';
                             iconContainer.style.background = 'var(--danger-dim)';
                             iconContainer.style.borderColor = 'rgba(239,68,68,0.2)';
                             svgActive.classList.add('hidden');
@@ -1137,7 +1137,7 @@
                         }
 
                         html += `
-                        <div class="relative group border rounded-xl p-5 flex flex-col justify-between transition-all duration-300 h-28 select-none ${bgClass}" style="border-color: var(--card-border);">
+                        <div class="relative group border rounded-xl p-5 flex flex-col justify-between h-28 select-none ${bgClass}" style="border-color: var(--border); background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, var(--bg-raised) 50%); box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.015) inset;">
                             <div class="flex justify-between items-start">
                                 <div class="font-semibold text-zinc-100 tracking-wide" style="font-size: 18px;">${key}</div>
                                 ${actionsHTML}
@@ -2058,7 +2058,7 @@
 
     <!-- Protocol Settings Modal -->
     <div id="protocol-modal" onclick="if(event.target === this) closeProtocolSettings()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-md transform scale-95 transition-transform duration-200" id="protocol-modal-content">
+        <div class="border rounded-xl p-6 w-full max-w-md transform scale-95 transition-transform duration-200" style="background: var(--bg-raised); border-color: var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.03) inset;" id="protocol-modal-content">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-lg font-semibold text-zinc-100 tracking-wide" id="protocol-modal-title">Настройки</h3>
                 <button type="button" class="text-zinc-500 hover:text-zinc-300" onclick="closeProtocolSettings()">
@@ -2119,7 +2119,7 @@
 
     <!-- QR Code Modal -->
     <div id="qr-modal" onclick="if(event.target === this) closeQRModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-sm transform scale-95 transition-transform duration-300 " id="qr-modal-content">
+        <div class="border rounded-xl p-6 w-full max-w-sm transform scale-95 transition-transform duration-200" style="background: var(--bg-raised); border-color: var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.03) inset;" id="qr-modal-content">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-lg font-semibold text-zinc-100 tracking-wide" id="qr-modal-title">QR Code</h3>
                 <button type="button" class="text-zinc-500 hover:text-zinc-300" onclick="closeQRModal()">
@@ -2145,7 +2145,7 @@
 
     <!-- Proton Config Modal -->
     <div id="proton-modal" onclick="if(event.target === this) closeProtonModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300 " id="proton-modal-content">
+        <div class="border rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-200" style="background: var(--bg-raised); border-color: var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.03) inset;" id="proton-modal-content">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold text-zinc-100 tracking-wide">Конфигурация Proton VPN</h3>
                 <button type="button" class="text-zinc-500 hover:text-zinc-300" onclick="closeProtonModal()">
@@ -2170,7 +2170,7 @@
 
     <!-- Domain Routes Modal -->
     <div id="domain-routes-modal" onclick="if(event.target === this) closeDomainRoutesModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-2xl transform scale-95 transition-transform duration-300  flex flex-col max-h-[90vh]" id="domain-routes-modal-content">
+        <div class="border rounded-xl p-6 w-full max-w-2xl transform scale-95 transition-transform duration-200 flex flex-col max-h-[90vh]" style="background: var(--bg-raised); border-color: var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.03) inset;" id="domain-routes-modal-content">
             <div class="flex justify-between items-center mb-4 pb-3 border-b border-zinc-800/80">
                 <div>
                     <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-100">Маршрутизация доменов</h3>
@@ -2241,7 +2241,7 @@
 
     <!-- Help Modal for WARP & Proton -->
     <div id="warp-help-modal" onclick="if(event.target === this) closeWarpHelpModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300  flex flex-col" id="warp-help-modal-content">
+        <div class="border rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-200 flex flex-col" style="background: var(--bg-raised); border-color: var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.03) inset;" id="warp-help-modal-content">
             <div class="flex justify-between items-center mb-4 pb-3 border-b border-zinc-800/80">
                 <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
                     <span>💡</span> Как это устроено?
@@ -2289,7 +2289,7 @@
 
     <!-- Advanced Mode Warning Modal -->
     <div id="advanced-warning-modal" onclick="if(event.target === this) closeAdvancedWarningModal()" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-[#09090b] border border-zinc-800 rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-300  flex flex-col" id="advanced-warning-modal-content">
+        <div class="border rounded-xl p-6 w-full max-w-lg transform scale-95 transition-transform duration-200 flex flex-col" style="background: var(--bg-raised); border-color: var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.03) inset;" id="advanced-warning-modal-content">
             <div class="flex justify-between items-center mb-5 pb-3 border-b border-zinc-800/80">
                 <h3 class="text-sm font-bold uppercase tracking-widest text-zinc-100 flex items-center gap-2">
                     <span>⚡</span> Расширенный режим
