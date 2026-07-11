@@ -543,9 +543,9 @@
                         
                         <!-- 1. Direct Domains Textarea -->
                         <div class="settings-group" style="border-bottom: 1px solid var(--card-border); padding-bottom: 24px;">
-                            <label class="form-label-premium">Сайты-исключения (напрямую, без VPN)</label>
+                            <label class="form-label-premium">Сайты-исключения (напрямую через домашнего провайдера)</label>
                             <textarea id="dns-direct-domains-textarea" class="premium-input font-mono w-full resize-none py-1.5" rows="6" placeholder="yandex.ru&#10;sberbank.ru" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7; height: 128px; min-height: 128px;"></textarea>
-                            <span class="input-tip">Введите домены (по одному на строку), которые должны открываться напрямую, в обход VPN.</span>
+                            <span class="input-tip">По одному домену на строку. Клиентское приложение (Clash/Sing-Box) направит трафик на эти сайты напрямую в обход VPN.</span>
                         </div>
 
                         <!-- 2. Direct Rules URL lists -->
@@ -555,7 +555,7 @@
                                 <input type="text" id="dns-direct-list-url-input" class="premium-input flex-1 py-1.5" placeholder="https://example.com/direct-rules.txt" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7;">
                                 <button type="button" class="bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-bold px-4 py-1.5 rounded-lg text-sm transition-colors cursor-pointer flex items-center justify-center" onclick="addDnsDirectListURL()">+</button>
                             </div>
-                            <span class="input-tip">Вставьте ссылку на файл со списком доменов-исключений. Обновляется автоматически каждые 6 часов.</span>
+                            <span class="input-tip">Вставьте ссылку на файл со списком доменов. Клиентские приложения будут открывать домены из этих списков напрямую через вашего провайдера.</span>
                             
                             <!-- Container for added list blocks -->
                             <div id="dns-direct-lists-container" class="flex flex-col gap-2 mt-3"></div>
@@ -1570,12 +1570,12 @@
             
             if (val === 'global') {
                 label.innerText = 'Сайты-исключения (в обход WARP)';
-                tip.innerText = 'По одному домену на строку. Указанные ресурсы откроются напрямую (без VPN).';
+                tip.innerText = 'По одному домену на строку. Указанные ресурсы откроются напрямую через вашего домашнего провайдера (без VPN).';
                 placeholder.placeholder = "sberbank.ru\nkinopoisk.ru";
                 modeTip.innerText = 'Все обращения будут направляться через туннель Cloudflare WARP. Вы можете указать исключения ниже.';
             } else {
                 label.innerText = 'Сайты для направления в WARP';
-                tip.innerText = 'По одному домену на строку. Указанные ресурсы откроются через WARP, остальные - напрямую.';
+                tip.innerText = 'По одному домену на строку. Указанные ресурсы откроются через WARP, остальные - напрямую через провайдера.';
                 placeholder.placeholder = "instagram.com\nopenai.com";
                 modeTip.innerText = 'Все обращения будут направляться напрямую. Только выбранные сайты пойдут через Cloudflare WARP.';
             }
@@ -1589,7 +1589,7 @@
             } else {
                 rawUrlString = document.getElementById('adv_direct_rules_url').value;
                 document.getElementById('simple-lists-label').innerText = 'Списки сайтов-исключений (по ссылкам)';
-                document.getElementById('simple-lists-tip').innerText = 'Вставьте ссылку на файл со списком доменов-исключений (напрямую). Обновляется автоматически каждые 12 часов.';
+                document.getElementById('simple-lists-tip').innerText = 'Вставьте ссылку на файл со списком доменов-исключений (напрямую через провайдера). Обновляется автоматически каждые 12 часов.';
             }
             simpleRulesURLs = rawUrlString.split(',').map(s => s.trim()).filter(s => s.length > 0);
             renderSimpleListURLs();
