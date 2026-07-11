@@ -71,6 +71,7 @@ type Config struct {
 	AnyTLSCascade    string          `json:"anytls_cascade"`
 	NaiveCascade     string          `json:"naive_cascade"`
 	DomainRoutes     string          `json:"domain_routes"`
+	UpdateInterval   int             `json:"update_interval"`
 }
 
 
@@ -197,6 +198,7 @@ func main() {
 	http.HandleFunc("/save-settings", handleSaveSettings)
 	http.HandleFunc("/api/metrics", handleAPIMetrics)
 	http.HandleFunc("/api/update-panel", handleUpdatePanel)
+	http.HandleFunc("/api/check-updates", handleCheckUpdates)
 	http.HandleFunc("/api/protocol-settings", handleGetProtocolSettings)
 	http.HandleFunc("/api/save-protocol-settings", handleSaveProtocolSettings)
 	http.HandleFunc("/sub/clash/", handleSubClash)
@@ -457,19 +459,31 @@ func startDirectRulesUpdater() {
 		updateDirectRules()
 	}()
 
-	ticker := time.NewTicker(6 * time.Hour)
 	go func() {
-		for range ticker.C {
+		for {
+			cfgMu.RLock()
+			interval := time.Duration(cfg.UpdateInterval) * time.Hour
+			cfgMu.RUnlock()
+			if interval < time.Hour {
+				interval = time.Hour
+			}
+			time.Sleep(interval)
 			updateDirectRules()
 		}
 	}()
 }
 
 func startWarpRulesUpdater() {
-	ticker := time.NewTicker(12 * time.Hour)
 	go func() {
-		for range ticker.C {
-			log.Println("Periodic 12-hour update of WARP domain lists starting...")
+		for {
+			cfgMu.RLock()
+			interval := time.Duration(cfg.UpdateInterval) * time.Hour
+			cfgMu.RUnlock()
+			if interval < time.Hour {
+				interval = time.Hour
+			}
+			log.Println("Periodic update of WARP domain lists starting...")
+			time.Sleep(interval)
 			applyRoutingChanges()
 		}
 	}()
@@ -516,6 +530,9 @@ func loadConfig() {
 	}
 	if cfg.KeyPath == "" {
 		cfg.KeyPath = "/etc/vpn-protocols/certs/key.pem"
+	}
+	if cfg.UpdateInterval == 0 {
+		cfg.UpdateInterval = 12
 	}
 	if cfg.AdminUser == "" {
 		cfg.AdminUser = "admin"
@@ -733,6 +750,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 		"AnyTLSCascade":    cfg.AnyTLSCascade,
 		"NaiveCascade":     cfg.NaiveCascade,
 		"DomainRoutes":    cfg.DomainRoutes,
+		"UpdateInterval":  cfg.UpdateInterval,
 		"Virt":            getVirtualization(),
 		"Arch":            getArchitecture(),
 	}
@@ -943,6 +961,11 @@ func handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Form["custom_dns_direct"] != nil {
 		cfg.CustomDNSDirect = r.FormValue("custom_dns_direct")
+	}
+	if r.Form["update_interval"] != nil {
+		if v, err := strconv.Atoi(r.FormValue("update_interval")); err == nil && v > 0 {
+			cfg.UpdateInterval = v
+		}
 	}
 	if r.Form["proton_config"] != nil {
 		protonConfig := r.FormValue("proton_config")
@@ -2357,6 +2380,52 @@ func handleUpdatePanel(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Update initiated"))
 }
 
+func handleCheckUpdates(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !checkSession(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	repoDir := "/root/vpn-server-installer"
+	cmdFetch := exec.Command("git", "-C", repoDir, "fetch", "--all")
+	if err := cmdFetch.Run(); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"has_updates": false, "error": "fetch failed"}`))
+		return
+	}
+
+	cmdLocal := exec.Command("git", "-C", repoDir, "rev-parse", "HEAD")
+	localOut, err := cmdLocal.Output()
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"has_updates": false, "error": "local hash failed"}`))
+		return
+	}
+
+	cmdRemote := exec.Command("git", "-C", repoDir, "rev-parse", "origin/master")
+	remoteOut, err := cmdRemote.Output()
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"has_updates": false, "error": "remote hash failed"}`))
+		return
+	}
+
+	localHash := strings.TrimSpace(string(localOut))
+	remoteHash := strings.TrimSpace(string(remoteOut))
+
+	hasUpdates := localHash != remoteHash
+	w.Header().Set("Content-Type", "application/json")
+	if hasUpdates {
+		w.Write([]byte(`{"has_updates": true}`))
+	} else {
+		w.Write([]byte(`{"has_updates": false}`))
+	}
+}
+
 type ProtocolSettingsRequest struct {
 	Protocol string `json:"protocol"`
 	Port     int    `json:"port"`
@@ -2501,7 +2570,15 @@ WantedBy=multi-user.target
 			if err := upgradeWarpLicenseKey(req.Password); err != nil {
 				cfgMu.Unlock()
 				log.Println("Error upgrading WARP license key:", err)
-				http.Error(w, "Failed to activate WARP+ key: "+err.Error(), http.StatusInternalServerError)
+				errMsg := err.Error()
+				w.Header().Set("Content-Type", "application/json")
+				if strings.Contains(errMsg, "expired") || strings.Contains(errMsg, "limit") || strings.Contains(errMsg, "exhausted") || strings.Contains(errMsg, "invalid") {
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte(`{"status":"expired","message":"Ключ израсходован или недействителен."}`))
+				} else {
+					w.WriteHeader(http.StatusInternalServerError)
+					w.Write([]byte(`{"status":"error","message":"Ошибка активации: ` + strings.ReplaceAll(errMsg, `"`, `\"`) + `"}`))
+				}
 				return
 			}
 		}

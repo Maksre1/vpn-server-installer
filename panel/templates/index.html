@@ -654,19 +654,24 @@
                     <!-- Card 3: WARP+ License Settings -->
                     <div class="card tab-card flex flex-col justify-between">
                         <div>
-                            <div class="card-info-header">
-                                <h3>Лицензия Cloudflare WARP+</h3>
-                                <p>Активация премиум-режима (WARP+) повышает скорость, стабильность и качество пинга.</p>
+                            <div class="card-info-header" style="display: flex; align-items: flex-start; justify-content: space-between;">
+                                <div>
+                                    <h3 style="display: flex; align-items: center; gap: 8px;">Лицензия Cloudflare WARP+
+                                        <button type="button" onclick="document.getElementById('warp-plus-help-modal').classList.remove('hidden')" class="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors" title="Что такое WARP+?">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"/></svg>
+                                        </button>
+                                    </h3>
+                                </div>
                             </div>
                             
                             <form action="/save-settings" method="POST">
                                 <div class="settings-group">
-                                    <label class="form-label-premium">Лицензионный ключ WARP+</label>
-                                    <div class="flex items-center gap-3 mt-2">
-                                        <input type="text" class="premium-input font-mono !mt-0" id="warp_license_key_field" name="warp_license_key" value="{{.WarpLicenseKey}}" placeholder="например, xxxx-xxxx-xxxx" style="margin-top: 0 !important; height: 40px;">
-                                        <button type="button" class="bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.09)] text-[var(--text)] px-4 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap" id="activate-warp-btn" onclick="activateWarpKey()" style="height: 40px; min-width: 130px; display: inline-flex; align-items: center; justify-content: center;">Активировать</button>
+                                    <label class="form-label-premium">Лицензионный ключ</label>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <input type="text" class="premium-input font-mono !mt-0 flex-1" id="warp_license_key_field" name="warp_license_key" value="{{.WarpLicenseKey}}" placeholder="xxxx-xxxx-xxxx" style="margin-top: 0 !important; height: 40px;">
+                                        <button type="button" class="btn-secondary text-xs font-semibold whitespace-nowrap" id="activate-warp-btn" onclick="activateWarpKey()" style="height: 40px; min-width: 110px; display: inline-flex; align-items: center; justify-content: center;">Активировать</button>
                                     </div>
-                                    <span class="input-tip mt-2 block">Активация мгновенно применит ключ на сервере. Оставьте поле пустым для бесплатного тарифа.</span>
+                                    <span class="text-xs block mt-2" id="warp-status-text" style="color: var(--text-tertiary);">{{if .WarpLicenseKey}}Текущий ключ установлен{{else}}Оставьте пустым для бесплатного тарифа{{end}}</span>
                                 </div>
                                 
                                 <div class="settings-actions" style="border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px;">
@@ -678,16 +683,34 @@
 
                 </div>
 
-                <!-- Card 4: Panel Update -->
+                <!-- Card 4: Panel Update & Interval -->
                 <div class="card tab-card mt-6">
                     <div class="card-info-header">
-                        <h3>Обновление панели управления</h3>
-                        <p>Автоматическая синхронизация исходного кода с репозиторием GitHub, перекомпиляция бинарного файла и мягкий перезапуск веб-интерфейса.</p>
+                        <h3>Обновление панели</h3>
+                        <p>Синхронизация с GitHub, перекомпиляция и перезапуск.</p>
                     </div>
-                    <div class="settings-actions" style="border-top: none; padding-top: 0;">
-                        <button type="button" onclick="updatePanel(this)" class="btn-secondary px-5 py-2.5 flex items-center gap-2">
-                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg> Проверить и установить обновления
-                        </button>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div class="settings-group">
+                            <label class="form-label-premium">Интервал обновления списков</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" class="premium-input font-mono w-20 text-center" name="update_interval" value="{{.UpdateInterval}}" min="1" max="168">
+                                <span class="text-xs text-[var(--text-secondary)]">часов</span>
+                            </div>
+                            <span class="input-tip">Как часто скачивать обновления списков доменов. По умолчанию 12ч.</span>
+                        </div>
+                        <div class="settings-group">
+                            <label class="form-label-premium">Обновление панели</label>
+                            <div id="update-panel-area">
+                                <button type="button" id="check-update-btn" onclick="checkForUpdates()" class="btn-secondary w-full text-xs py-2.5 flex items-center justify-center gap-2">
+                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg>
+                                    Проверить обновления
+                                </button>
+                            </div>
+                            <span class="input-tip" id="update-status"></span>
+                        </div>
+                    </div>
+                    <div class="settings-actions" style="border-top: 1px solid var(--border); margin-top: 12px; padding-top: 12px;">
+                        <button type="submit" class="btn">Сохранить настройки</button>
                     </div>
                 </div>
             </section>
@@ -762,6 +785,7 @@
             const oldText = btn.innerText;
             btn.innerText = 'Активация...';
             btn.disabled = true;
+            btn.style.opacity = '0.6';
 
             fetch('/api/save-protocol-settings', {
                 method: 'POST',
@@ -770,22 +794,107 @@
             })
             .then(res => {
                 if (res.ok) {
-                    alert('Лицензионный ключ WARP+ успешно применен и активирован!');
+                    btn.innerText = 'Активировано';
+                    btn.style.background = 'var(--accent)';
+                    btn.style.color = '#000';
+                    btn.style.opacity = '1';
+                    document.getElementById('warp-status-text').innerText = 'WARP+ активирован';
+                    document.getElementById('warp-status-text').style.color = 'var(--accent)';
                     updateMetrics();
                 } else {
-                    res.text().then(text => {
-                        alert('Ошибка активации ключа: ' + text);
+                    return res.json().then(data => {
+                        btn.innerText = 'Ошибка';
+                        btn.style.background = 'var(--danger)';
+                        btn.style.color = '#fff';
+                        btn.style.opacity = '1';
+                        document.getElementById('warp-status-text').innerText = data.message || 'Ошибка активации';
+                        document.getElementById('warp-status-text').style.color = 'var(--danger)';
+                        setTimeout(() => {
+                            btn.innerText = oldText;
+                            btn.style.background = '';
+                            btn.style.color = '';
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                        }, 4000);
                     });
                 }
             })
             .catch(err => {
-                alert('Ошибка соединения с сервером');
-                console.error(err);
-            })
-            .finally(() => {
-                btn.innerText = oldText;
-                btn.disabled = false;
+                btn.innerText = 'Ошибка сети';
+                btn.style.background = 'var(--danger)';
+                btn.style.color = '#fff';
+                btn.style.opacity = '1';
+                setTimeout(() => {
+                    btn.innerText = oldText;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                }, 3000);
             });
+        }
+
+        // Check for updates
+        function checkForUpdates() {
+            const btn = document.getElementById('check-update-btn');
+            const status = document.getElementById('update-status');
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.innerHTML = '<svg class="w-4 h-4 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Проверка...';
+
+            fetch('/api/check-updates')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.has_updates) {
+                        status.innerHTML = '<span style="color: var(--warning);">Доступно обновление.</span> <button type="button" onclick="installUpdate()" style="color: var(--accent); text-decoration: underline; cursor: pointer; background: none; border: none; font-size: inherit; font-family: inherit;">Установить</button>';
+                        btn.style.opacity = '1';
+                        btn.disabled = false;
+                        btn.innerHTML = '<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg> Проверить обновления';
+                    } else {
+                        status.innerText = 'Обновлений нет. Вы на последней версии.';
+                        status.style.color = 'var(--accent)';
+                        btn.style.opacity = '1';
+                        btn.disabled = false;
+                        btn.innerHTML = '<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg> Проверить обновления';
+                        setTimeout(() => { status.innerText = ''; status.style.color = ''; }, 5000);
+                    }
+                })
+                .catch(err => {
+                    status.innerText = 'Ошибка проверки';
+                    status.style.color = 'var(--danger)';
+                    btn.style.opacity = '1';
+                    btn.disabled = false;
+                    btn.innerHTML = '<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg> Проверить обновления';
+                });
+        }
+
+        function installUpdate() {
+            const area = document.getElementById('update-panel-area');
+            const status = document.getElementById('update-status');
+            let countdown = 10;
+
+            area.innerHTML = `
+                <div class="flex items-center gap-3 p-3 rounded-lg border" style="border-color: var(--border); background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, var(--bg-raised) 50%);">
+                    <svg class="w-5 h-5 animate-spin shrink-0" style="color: var(--accent);" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    <div>
+                        <div class="text-xs font-semibold text-[var(--text)]">Обновление запущено</div>
+                        <div class="text-[10px] text-[var(--text-secondary)]" id="update-countdown">Перезагрузка через ${countdown} сек...</div>
+                    </div>
+                </div>
+            `;
+            status.innerHTML = '';
+
+            fetch('/api/update-panel', { method: 'POST' }).catch(() => {});
+
+            const timer = setInterval(() => {
+                countdown--;
+                const el = document.getElementById('update-countdown');
+                if (el) el.innerText = `Перезагрузка через ${countdown} сек...`;
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    window.location.reload();
+                }
+            }, 1000);
         }
 
         // DNS Custom Fields Toggle
@@ -816,26 +925,7 @@
         }
 
         function updatePanel(btn) {
-            if (!confirm("Вы уверены, что хотите запустить обновление панели? Это перезапустит веб-интерфейс.")) return;
-            const oldText = btn.innerText;
-            btn.innerText = "Запуск обновления...";
-            btn.disabled = true;
-
-            fetch('/api/update-panel', { method: 'POST' })
-                .then(res => {
-                    if (res.ok) {
-                        alert("Обновление успешно запущено в фоновом режиме! Страница перезагрузится через 6 секунд.");
-                        setTimeout(() => { window.location.reload(); }, 6000);
-                    } else {
-                        alert("Ошибка запуска обновления: сервер вернул статус " + res.status);
-                        btn.innerText = oldText;
-                        btn.disabled = false;
-                    }
-                })
-                .catch(err => {
-                    alert("Связь с сервером прервана (сервер обновляется и перезапускается). Перезагрузка страницы...");
-                    setTimeout(() => { window.location.reload(); }, 4000);
-                });
+            installUpdate();
         }
 
         // Format system units
@@ -1215,7 +1305,8 @@
             .then(res => {
                 if (res.ok) {
                     if (protocol === 'WARP') {
-                        alert('Лицензионный ключ WARP+ успешно применен и активирован!');
+                        document.getElementById('warp-status-text').innerText = 'Ключ активирован';
+                        document.getElementById('warp-status-text').style.color = 'var(--accent)';
                     } else {
                         alert('Настройки успешно изменены и применены! Сервис перезапущен.');
                     }
@@ -2278,6 +2369,26 @@
                     </svg>
                     <span>В обычные настройки</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WARP+ Help Modal -->
+    <div id="warp-plus-help-modal" onclick="if(event.target === this) this.classList.add('hidden')" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden transition-opacity duration-200">
+        <div class="border rounded-xl p-6 w-full max-w-md transform transition-transform duration-200" style="background: var(--bg-raised); border-color: var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.03) inset;">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-semibold text-[var(--text)]">Что такое WARP+?</h3>
+                <button type="button" class="text-[var(--text-secondary)] hover:text-[var(--text)]" onclick="document.getElementById('warp-plus-help-modal').classList.add('hidden')">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="text-xs text-[var(--text-secondary)] space-y-3 leading-relaxed">
+                <p>Cloudflare WARP — бесплатный VPN-туннель от Cloudflare. Бесплатная версия уже включена и работает.</p>
+                <p><strong class="text-[var(--text)]">WARP+</strong> — это платная надстройка, которая理論ически повышает приоритет трафика. На практике выигрыша для VPN-серверов почти нет.</p>
+                <p>Ключи WARP+ можно найти в Telegram-боте: <a href="https://t.me/warpplus" target="_blank" rel="noopener" class="text-[var(--accent)] hover:underline">@warpplus</a></p>
+                <div class="p-3 rounded-lg text-[11px]" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border);">
+                    <span class="text-[var(--text-secondary)]">Ключ действителен однократно. Если при активации выдаёт «израсходован» — просто возьмите новый ключ у бота.</span>
+                </div>
             </div>
         </div>
     </div>
