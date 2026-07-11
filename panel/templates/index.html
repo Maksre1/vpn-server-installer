@@ -17,12 +17,8 @@
     <style>
         .ip-blurred {
             filter: blur(6px);
-            transition: filter 0.2s ease;
             display: inline-block;
             user-select: none;
-        }
-        .ip-blurred:hover {
-            filter: blur(2px);
         }
         .ip-unblurred {
             filter: blur(0px) !important;
@@ -588,7 +584,6 @@
 
             <!-- Tab 5: Settings -->
             <section id="tab-security" class="tab-section">
-                <div class="max-w-5xl">
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
                     
                     <!-- Card 1: Authorization -->
@@ -694,7 +689,6 @@
                             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182"/></svg> Проверить и установить обновления
                         </button>
                     </div>
-                </div>
                 </div>
             </section>
         </main>
@@ -1592,14 +1586,14 @@
             
             if (val === 'global') {
                 label.innerText = 'Сайты-исключения (в обход WARP)';
-                tip.innerText = 'По одному домену на строку. Указанные ресурсы откроются напрямую через вашего домашнего провайдера (без VPN).';
+                tip.innerText = 'По одному домену на строку. Указанные домены откроются напрямую, без шифрования через WARP.';
                 placeholder.placeholder = "sberbank.ru\nkinopoisk.ru";
-                modeTip.innerText = 'Все обращения будут направляться через туннель Cloudflare WARP. Вы можете указать исключения ниже.';
+                modeTip.innerText = 'Весь трафик идёт через Cloudflare WARP. Ниже можно указать исключения.';
             } else {
                 label.innerText = 'Сайты для направления в WARP';
-                tip.innerText = 'По одному домену на строку. Указанные ресурсы откроются через WARP, остальные - напрямую через провайдера.';
+                tip.innerText = 'По одному домену на строку. Только эти домены пойдут через WARP, остальные — напрямую.';
                 placeholder.placeholder = "instagram.com\nopenai.com";
-                modeTip.innerText = 'Все обращения будут направляться напрямую. Только выбранные сайты пойдут через Cloudflare WARP.';
+                modeTip.innerText = 'Весь трафик идёт напрямую. Только выбранные сайты пойдут через Cloudflare WARP.';
             }
 
             // Sync simple rules URLs list matching mode
