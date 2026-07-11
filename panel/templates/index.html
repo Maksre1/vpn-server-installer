@@ -403,7 +403,7 @@
                                     </select>
                                     <span class="input-tip">Трафик без персональных правил пойдёт по этому пути.</span>
                                 </div>
-                                <div id="warp-rules-url-group" style="display: {{if eq .WarpMode "global"}}none{{else}}block{{}};">
+                                <div id="warp-rules-url-group" style="display: {{if eq .WarpMode "global"}}none{{else}}block{{end}};">
                                     <div class="settings-group">
                                         <label class="form-label-premium">Списки доменов WARP</label>
                                         <input type="text" class="premium-input" name="warp_rules_url" id="adv_warp_rules_url" value="{{.WarpRulesURL}}" placeholder="https://...">
@@ -468,41 +468,41 @@
                                 <h3 class="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-secondary)]">Каскадирование служб</h3>
                                 <p class="text-xs text-[var(--text-secondary)] mt-1">VPN-маршрут для каждой службы отдельно.</p>
                             </div>
-                            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                <div class="tab-card !p-4">
-                                    <span class="text-sm font-semibold text-[var(--text)] block mb-2">Hysteria 2</span>
-                                    <select id="adv_hysteria_cascade" class="select-input w-full text-xs">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div class="flex items-center gap-3 p-3 rounded-lg border" style="border-color: var(--border); background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, var(--bg-raised) 50%);">
+                                    <span class="text-xs font-semibold text-[var(--text)] whitespace-nowrap">Hysteria 2</span>
+                                    <select id="adv_hysteria_cascade" class="select-input flex-1 min-w-0 text-[11px] !py-1 !h-7">
                                         <option value="direct" {{if eq .HysteriaCascade "direct"}}selected{{end}}>Direct</option>
                                         <option value="warp" {{if or (eq .HysteriaCascade "") (eq .HysteriaCascade "warp")}}selected{{end}}>WARP</option>
                                         <option value="proton-auto" {{if eq .HysteriaCascade "proton-auto"}}selected{{end}}>Proton Авто</option>
-                                        {{range .ProtonProfiles}}<option value="{{.ID}}" {{if eq $.HysteriaCascade .ID}}selected{{end}}>Proton: {{.Name}}</option>{{end}}
+                                        {{range .ProtonProfiles}}<option value="{{.ID}}" {{if eq $.HysteriaCascade .ID}}selected{{end}}>{{.Name}}</option>{{end}}
                                     </select>
                                 </div>
-                                <div class="tab-card !p-4">
-                                    <span class="text-sm font-semibold text-[var(--text)] block mb-2">Mieru</span>
-                                    <select id="adv_mieru_cascade" class="select-input w-full text-xs">
+                                <div class="flex items-center gap-3 p-3 rounded-lg border" style="border-color: var(--border); background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, var(--bg-raised) 50%);">
+                                    <span class="text-xs font-semibold text-[var(--text)] whitespace-nowrap">Mieru</span>
+                                    <select id="adv_mieru_cascade" class="select-input flex-1 min-w-0 text-[11px] !py-1 !h-7">
                                         <option value="direct" {{if eq .MieruCascade "direct"}}selected{{end}}>Direct</option>
                                         <option value="warp" {{if or (eq .MieruCascade "") (eq .MieruCascade "warp")}}selected{{end}}>WARP</option>
                                         <option value="proton-auto" {{if eq .MieruCascade "proton-auto"}}selected{{end}}>Proton Авто</option>
-                                        {{range .ProtonProfiles}}<option value="{{.ID}}" {{if eq $.MieruCascade .ID}}selected{{end}}>Proton: {{.Name}}</option>{{end}}
+                                        {{range .ProtonProfiles}}<option value="{{.ID}}" {{if eq $.MieruCascade .ID}}selected{{end}}>{{.Name}}</option>{{end}}
                                     </select>
                                 </div>
-                                <div class="tab-card !p-4">
-                                    <span class="text-sm font-semibold text-[var(--text)] block mb-2">AnyTLS</span>
-                                    <select id="adv_anytls_cascade" class="select-input w-full text-xs">
+                                <div class="flex items-center gap-3 p-3 rounded-lg border" style="border-color: var(--border); background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, var(--bg-raised) 50%);">
+                                    <span class="text-xs font-semibold text-[var(--text)] whitespace-nowrap">AnyTLS</span>
+                                    <select id="adv_anytls_cascade" class="select-input flex-1 min-w-0 text-[11px] !py-1 !h-7">
                                         <option value="direct" {{if eq .AnyTLSCascade "direct"}}selected{{end}}>Direct</option>
                                         <option value="warp" {{if or (eq .AnyTLSCascade "") (eq .AnyTLSCascade "warp")}}selected{{end}}>WARP</option>
                                         <option value="proton-auto" {{if eq .AnyTLSCascade "proton-auto"}}selected{{end}}>Proton Авто</option>
-                                        {{range .ProtonProfiles}}<option value="{{.ID}}" {{if eq $.AnyTLSCascade .ID}}selected{{end}}>Proton: {{.Name}}</option>{{end}}
+                                        {{range .ProtonProfiles}}<option value="{{.ID}}" {{if eq $.AnyTLSCascade .ID}}selected{{end}}>{{.Name}}</option>{{end}}
                                     </select>
                                 </div>
-                                <div class="tab-card !p-4">
-                                    <span class="text-sm font-semibold text-[var(--text)] block mb-2">NaiveProxy</span>
-                                    <select id="adv_naive_cascade" class="select-input w-full text-xs">
+                                <div class="flex items-center gap-3 p-3 rounded-lg border" style="border-color: var(--border); background: linear-gradient(180deg, rgba(255,255,255,0.025) 0%, var(--bg-raised) 50%);">
+                                    <span class="text-xs font-semibold text-[var(--text)] whitespace-nowrap">NaiveProxy</span>
+                                    <select id="adv_naive_cascade" class="select-input flex-1 min-w-0 text-[11px] !py-1 !h-7">
                                         <option value="direct" {{if eq .NaiveCascade "direct"}}selected{{end}}>Direct</option>
                                         <option value="warp" {{if or (eq .NaiveCascade "") (eq .NaiveCascade "warp")}}selected{{end}}>WARP</option>
                                         <option value="proton-auto" {{if eq .NaiveCascade "proton-auto"}}selected{{end}}>Proton Авто</option>
-                                        {{range .ProtonProfiles}}<option value="{{.ID}}" {{if eq $.NaiveCascade .ID}}selected{{end}}>Proton: {{.Name}}</option>{{end}}
+                                        {{range .ProtonProfiles}}<option value="{{.ID}}" {{if eq $.NaiveCascade .ID}}selected{{end}}>{{.Name}}</option>{{end}}
                                     </select>
                                 </div>
                             </div>
