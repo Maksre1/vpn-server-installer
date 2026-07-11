@@ -16,12 +16,13 @@
     <script src="/static/qrious.min.js"></script>
     <style>
         .ip-blurred {
-            filter: blur(4px);
-            transition: filter 0.3s ease;
+            filter: blur(6px);
+            transition: filter 0.2s ease;
             display: inline-block;
+            user-select: none;
         }
         .ip-blurred:hover {
-            filter: blur(1.5px);
+            filter: blur(2px);
         }
         .ip-unblurred {
             filter: blur(0px) !important;
@@ -559,6 +560,7 @@
                 
                 <!-- Tab 4: DNS & Bypass Routing -->
                 <section id="tab-dns-routing" class="tab-section">
+                    <div class="max-w-3xl">
                     <!-- Direct Domains Section -->
                     <div class="tab-card mb-6">
                         <div class="card-info-header">
@@ -623,12 +625,14 @@
                             <button type="submit" class="btn">Применить настройки</button>
                         </div>
                     </div>
+                    </div>
                 </section>
                 
             </form>
 
             <!-- Tab 5: Settings -->
             <section id="tab-security" class="tab-section">
+                <div class="max-w-5xl">
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-stretch">
                     
                     <!-- Card 1: Authorization -->
@@ -730,10 +734,11 @@
                         <p>Автоматическая синхронизация исходного кода с репозиторием GitHub, перекомпиляция бинарного файла и мягкий перезапуск веб-интерфейса.</p>
                     </div>
                     <div class="settings-actions" style="border-top: none; padding-top: 0;">
-                        <button type="button" onclick="updatePanel(this)" class="btn bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.09)] text-[var(--text)] border border-[var(--border-hover)] font-semibold px-6 py-2.5 rounded transition-all duration-300 flex items-center gap-2">
+                        <button type="button" onclick="updatePanel(this)" class="btn-secondary px-5 py-2.5 flex items-center gap-2">
                             <span>🔄</span> Проверить и установить обновления
                         </button>
                     </div>
+                </div>
                 </div>
             </section>
         </main>
