@@ -48,6 +48,7 @@ if [ ! -f "$BINARY_PATH" ]; then
     go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
     
     log_info "Компиляция Caddy с naive-плагином forwardproxy..."
+    OLD_PWD="$PWD"
     cd "$BUILD_DIR"
     xcaddy build --with github.com/caddyserver/forwardproxy=github.com/klzgrad/forwardproxy@naive
     
@@ -57,6 +58,7 @@ if [ ! -f "$BINARY_PATH" ]; then
     
     # Purge Go compiler and cache to save space
     log_info "Очистка временных файлов сборки Go..."
+    cd "$OLD_PWD"
     rm -rf "$BUILD_DIR"
     log_info "Caddy успешно скомпилирован и установлен."
 fi

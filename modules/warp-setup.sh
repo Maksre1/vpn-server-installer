@@ -30,6 +30,7 @@ if [ ! -f "$WGCF_PATH" ]; then
 fi
 
 # 2. Register account with exponential backoff for 429 rate limits
+OLD_PWD="$PWD"
 cd /tmp
 rm -f wgcf-account.toml wgcf-profile.conf
 
@@ -83,4 +84,5 @@ EOF
 
 # Clean up /tmp
 rm -f wgcf-account.toml wgcf-profile.conf
+cd "$OLD_PWD"
 log_info "WARP успешно настроен в пользовательском режиме (userspace via sing-box)."
