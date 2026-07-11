@@ -34,20 +34,24 @@ if [ ! -d "$SCRIPT_DIR/modules" ] || [ ! -f "$SCRIPT_DIR/modules/preflight.sh" ]
     exit 0
 fi
 
-# Redirect all stdout/stderr to log file, while keeping output on console
+# Logger helpers with dual output (console + file)
 LOG_FILE="/var/log/vpn-installer.log"
 mkdir -p "$(dirname "$LOG_FILE")"
-exec > >(tee -a "$LOG_FILE") 2>&1
 
-# Logger helpers
 log_info() {
-    echo -e "\033[32m[INFO]\033[0m $1"
+    local msg="$1"
+    echo -e "\033[32m[INFO]\033[0m $msg"
+    echo "[INFO] $msg" >> "$LOG_FILE" 2>/dev/null || true
 }
 log_warn() {
-    echo -e "\033[33m[WARN]\033[0m $1"
+    local msg="$1"
+    echo -e "\033[33m[WARN]\033[0m $msg"
+    echo "[WARN] $msg" >> "$LOG_FILE" 2>/dev/null || true
 }
 log_err() {
-    echo -e "\033[31m[ERROR]\033[0m $1" >&2
+    local msg="$1"
+    echo -e "\033[31m[ERROR]\033[0m $msg" >&2
+    echo "[ERROR] $msg" >> "$LOG_FILE" 2>/dev/null || true
 }
 
 clear || true

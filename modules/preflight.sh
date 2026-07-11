@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+LOG_FILE="${LOG_FILE:-/var/log/vpn-installer.log}"
+
 # Logger helper
 log_info() {
     echo -e "\033[32m[INFO]\033[0m $1"
@@ -169,10 +171,10 @@ else
     if [ "$SWAP_SIZE_GB" -gt 0 ]; then
         log_info "Создание файла подкачки (Swap) размером ${SWAP_SIZE_GB} GB..."
         # Allocate space
-        fallocate -l "${SWAP_SIZE_GB}G" /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=$((SWAP_SIZE_GB * 1024))
-        chmod 600 /swapfile
-        mkswap /swapfile
-        swapon /swapfile
+        fallocate -l "${SWAP_SIZE_GB}G" /swapfile >> "$LOG_FILE" 2>&1 || dd if=/dev/zero of=/swapfile bs=1M count=$((SWAP_SIZE_GB * 1024)) >> "$LOG_FILE" 2>&1
+        chmod 600 /swapfile >> "$LOG_FILE" 2>&1
+        mkswap /swapfile >> "$LOG_FILE" 2>&1
+        swapon /swapfile >> "$LOG_FILE" 2>&1
         # Persist swap
         if ! grep -q '/swapfile' /etc/fstab; then
             echo '/swapfile none swap sw 0 0' >> /etc/fstab

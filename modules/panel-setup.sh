@@ -16,9 +16,9 @@ CRAFT_SELF_SIGNED="${CRAFT_SELF_SIGNED:-false}"
 # Copy panel template and static directories to /opt/vpn-panel/
 # This is where our Go application loads HTML templates and static stylesheets
 mkdir -p /opt/vpn-panel/templates /opt/vpn-panel/static
-cp -r "$(dirname "$0")/../panel/templates/"* /opt/vpn-panel/templates/ || true
-cp -r "$(dirname "$0")/../panel/static/"* /opt/vpn-panel/static/ || true
-cp "$(dirname "$0")/../panel/apply-routing.sh" /opt/vpn-panel/apply-routing.sh || true
+cp -r "$(dirname "$0")/panel/templates/"* /opt/vpn-panel/templates/ || true
+cp -r "$(dirname "$0")/panel/static/"* /opt/vpn-panel/static/ || true
+cp "$(dirname "$0")/panel/apply-routing.sh" /opt/vpn-panel/apply-routing.sh || true
 chmod +x /opt/vpn-panel/apply-routing.sh
 
 # 1. Download Go Web Panel Binary from Releases
@@ -84,8 +84,8 @@ if [ -z "$PASS_HASH" ] || [ "$PASS_HASH" = "null" ]; then
 fi
 
 # Generate default DIRECT and WARP domain lists
-DIRECT_DOMAINS=$(cat "$(dirname "$0")/../lists/ru-domains.txt" || echo "")
-WARP_DOMAINS=$(cat "$(dirname "$0")/../lists/ai-domains.txt" || echo "")
+DIRECT_DOMAINS=$(cat "$(dirname "$0")/lists/ru-domains.txt" || echo "")
+WARP_DOMAINS=$(cat "$(dirname "$0")/lists/ai-domains.txt" || echo "")
 
 cat <<EOF > "$SETTINGS_FILE"
 {
