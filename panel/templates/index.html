@@ -990,7 +990,7 @@
                     }
                     
                     // Update WARP banner status dynamically
-                    const isWarpActive = data.WARP && data.WARP.Active;
+                    const isWarpActive = data.Services && data.Services.WARP && data.Services.WARP.active;
                     const warpCard = document.getElementById('warp-info-banner-card');
                     const warpGlow = document.getElementById('warp-info-banner-glow');
                     const iconContainer = document.getElementById('warp-status-icon-container');
