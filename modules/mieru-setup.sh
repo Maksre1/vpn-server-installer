@@ -47,6 +47,12 @@ if [ -z "$PASSWORD" ]; then
     PASSWORD=$(openssl rand -hex 16)
 fi
 
+# Create system user 'mita' if it doesn't exist
+if ! id "mita" >/dev/null 2>&1; then
+    log_info "Создание системного пользователя mita..."
+    useradd -r -s /usr/sbin/nologin mita || adduser --system --no-create-home --group mita || true
+fi
+
 log_info "Настройка Mieru (mita) на порту $PORT (TCP/UDP)..."
 
 # 4. Create Systemd Service
