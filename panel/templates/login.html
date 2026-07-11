@@ -14,12 +14,17 @@
             background: rgba(255,255,255,0.03);
             border: 1px solid var(--border);
             border-radius: 12px;
-            color: var(--text);
+            color: transparent;
+            caret-color: var(--text);
             font-size: 15px;
             font-family: var(--sans);
             transition: border-color 0.15s;
             outline: none;
+            -webkit-text-security: none;
+            text-shadow: none;
         }
+        .pwd-field input::-webkit-text-security { display: none; }
+        .pwd-field input::placeholder { color: var(--text-tertiary); text-shadow: none; }
         .pwd-field input:focus { border-color: var(--border-hover); }
         .pwd-eye {
             position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
@@ -34,23 +39,22 @@
         .pwd-dots {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             display: flex; align-items: center; padding-left: 16px;
-            pointer-events: none; gap: 6px;
-            font-size: 20px; letter-spacing: 0;
+            pointer-events: none; gap: 5px;
         }
         .pwd-dots span {
             display: inline-block;
-            width: 8px; height: 8px;
             border-radius: 50%;
             background: var(--text-secondary);
-            opacity: 0.5;
-            animation: dotPulse 2s ease-in-out infinite;
+            animation: dotPulse 2.5s ease-in-out infinite;
         }
-        .pwd-dots span:nth-child(2n) { animation-delay: 0.3s; opacity: 0.35; width: 7px; height: 7px; }
-        .pwd-dots span:nth-child(3n) { animation-delay: 0.6s; opacity: 0.6; width: 9px; height: 9px; }
-        .pwd-dots span:nth-child(4n) { animation-delay: 0.15s; opacity: 0.3; width: 6px; height: 6px; }
+        .pwd-dots span:nth-child(5n+1) { width: 9px; height: 9px; opacity: 0.6; animation-delay: 0s; }
+        .pwd-dots span:nth-child(5n+2) { width: 7px; height: 7px; opacity: 0.35; animation-delay: 0.4s; }
+        .pwd-dots span:nth-child(5n+3) { width: 10px; height: 10px; opacity: 0.55; animation-delay: 0.8s; }
+        .pwd-dots span:nth-child(5n+4) { width: 6px; height: 6px; opacity: 0.3; animation-delay: 0.2s; }
+        .pwd-dots span:nth-child(5n+5) { width: 8px; height: 8px; opacity: 0.5; animation-delay: 0.6s; }
         @keyframes dotPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.15); }
+            0%, 100% { transform: scale(1); opacity: inherit; }
+            50% { transform: scale(1.2); }
         }
     </style>
 </head>
@@ -134,14 +138,13 @@
         function togglePwd(inputId, dotsId, btn) {
             const input = document.getElementById(inputId);
             const dots = document.getElementById(dotsId);
-            if (input.type === 'password') {
-                input.type = 'text';
-                dots.style.display = 'none';
+            if (input.style.color === 'transparent') {
                 input.style.color = 'var(--text)';
+                input.style.webkitTextSecurity = 'none';
+                dots.style.display = 'none';
             } else {
-                input.type = 'password';
-                dots.style.display = 'flex';
                 input.style.color = 'transparent';
+                dots.style.display = 'flex';
                 renderDots(inputId, dotsId);
             }
         }
