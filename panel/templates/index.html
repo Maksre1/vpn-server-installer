@@ -1825,28 +1825,29 @@
                 const simpleMode = document.getElementById('simple_mode_select').value;
                 const textareaVal = document.getElementById('simple-domains-textarea').value || '';
                 const domains = textareaVal.split(/[\s,\n]+/).map(d => d.trim()).filter(d => d !== '');
-                
+
                 if (simpleMode === 'global') {
                     document.getElementById('warp_mode').value = 'global';
                     const routes = domains.map(d => `${d}:direct`).join('\n');
                     document.getElementById('domain_routes').value = routes;
                     document.getElementById('warp_list_hidden').value = '';
-                    document.getElementById('direct_list_hidden').value = domains.join('\n');
-                    document.getElementById('dns-direct-domains-textarea').value = domains.join('\n');
                 } else {
                     document.getElementById('warp_mode').value = 'direct';
                     const routes = domains.map(d => `${d}:warp`).join('\n');
                     document.getElementById('domain_routes').value = routes;
                     document.getElementById('warp_list_hidden').value = domains.join('\n');
-                    document.getElementById('direct_list_hidden').value = '';
-                    document.getElementById('dns-direct-domains-textarea').value = '';
                 }
-                
+
                 document.getElementById('hysteria_cascade_hidden').value = document.getElementById('simple_hysteria_cascade').value;
                 document.getElementById('mieru_cascade_hidden').value = document.getElementById('simple_mieru_cascade').value;
                 document.getElementById('anytls_cascade_hidden').value = document.getElementById('simple_anytls_cascade').value;
                 document.getElementById('naive_cascade_hidden').value = document.getElementById('simple_naive_cascade').value;
             }
+
+            // Always sync DNS textarea → direct_list_hidden (DNS tab is independent of WARP mode)
+            const dnsDirectText = document.getElementById('dns-direct-domains-textarea').value || '';
+            const directDomains = dnsDirectText.split(/[\s,\n]+/).map(d => d.trim()).filter(d => d !== '');
+            document.getElementById('direct_list_hidden').value = directDomains.join('\n');
         }
 
         function renderModalTable() {
