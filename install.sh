@@ -1,6 +1,33 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
+# Check if running in a directory without modules/
+SCRIPT_DIR=$(dirname "$0")
+if [ ! -d "$SCRIPT_DIR/modules" ] || [ ! -f "$SCRIPT_DIR/modules/preflight.sh" ]; then
+    echo -e "\033[32m[INFO]\033[0m Скрипт запущен удаленно. Скачивание структуры проекта с GitHub..."
+    TEMP_DIR=$(mktemp -d -t vpn-installer-XXXXXX)
+    
+    if command -v git >/dev/null; then
+        git clone https://github.com/Maksre1/vpn-server-installer.git "$TEMP_DIR" >/dev/null 2>&1
+    else
+        # Try curl / wget zip
+        if command -v curl >/dev/null; then
+            curl -L -s -o "$TEMP_DIR/archive.zip" "https://github.com/Maksre1/vpn-server-installer/archive/refs/heads/master.zip"
+        else
+            wget -q -O "$TEMP_DIR/archive.zip" "https://github.com/Maksre1/vpn-server-installer/archive/refs/heads/master.zip"
+        fi
+        unzip -q -o "$TEMP_DIR/archive.zip" -d "$TEMP_DIR"
+        SUBFOLDER=$(find "$TEMP_DIR" -maxdepth 1 -type d -name "vpn-server-installer-*" | head -n 1)
+        if [ -n "$SUBFOLDER" ]; then
+            cp -r "$SUBFOLDER/"* "$TEMP_DIR/"
+        fi
+    fi
+    
+    cd "$TEMP_DIR"
+    exec bash install.sh "$@"
+    exit 0
+fi
+
 # Redirect all stdout/stderr to log file, while keeping output on console
 LOG_FILE="/var/log/vpn-installer.log"
 mkdir -p "$(dirname "$LOG_FILE")"
