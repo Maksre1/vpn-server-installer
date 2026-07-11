@@ -54,8 +54,8 @@ echo -e "\033[0m"
 # Auto / Manual selection with 10-second timeout
 MODE=""
 echo "Выберите режим установки:"
-echo "1) Auto   (Ноль вопросов, всё под ключ, по умолчанию через 10 сек)"
-echo "2) Manual (Выборочная настройка протоколов, домена, SSH, WARP)"
+echo "1) Auto   (Рекомендуется, автозапуск через 10 сек)"
+echo "2) Manual (Для продвинутых)"
 echo
 
 read -t 10 -p "Введите номер режима [1-2, по умолчанию Auto]: " input_mode || input_mode="1"
@@ -73,6 +73,11 @@ INSTALL_HYSTERIA=true
 INSTALL_MIERU=true
 INSTALL_ANYTLS=true
 INSTALL_NAIVE=true
+
+HYSTERIA_PORT=""
+MIERU_PORT=""
+ANYTLS_PORT=""
+NAIVE_PORT=""
 
 DOMAIN=""
 CF_TOKEN=""
@@ -98,18 +103,42 @@ if [ "$MODE" = "manual" ]; then
 
     # 2. Protocol selections
     echo
-    echo "=== Выбор устанавливаемых протоколов ==="
+    echo "=== Выбор устанавливаемых протоколов и портов ==="
     read -p "Установить Hysteria 2? (y/n, по умолчанию y): " inst_h
-    if [ "$inst_h" = "n" ] || [ "$inst_h" = "N" ]; then INSTALL_HYSTERIA=false; fi
+    if [ "$inst_h" != "n" ] && [ "$inst_h" != "N" ]; then
+        INSTALL_HYSTERIA=true
+        read -p "Введите порт для Hysteria 2 (или оставьте пустым для случайного): " h_port
+        HYSTERIA_PORT="$h_port"
+    else
+        INSTALL_HYSTERIA=false
+    fi
 
     read -p "Установить Mieru? (y/n, по умолчанию y): " inst_m
-    if [ "$inst_m" = "n" ] || [ "$inst_m" = "N" ]; then INSTALL_MIERU=false; fi
+    if [ "$inst_m" != "n" ] && [ "$inst_m" != "N" ]; then
+        INSTALL_MIERU=true
+        read -p "Введите порт для Mieru (или оставьте пустым для случайного): " m_port
+        MIERU_PORT="$m_port"
+    else
+        INSTALL_MIERU=false
+    fi
 
     read -p "Установить AnyTLS? (y/n, по умолчанию y): " inst_a
-    if [ "$inst_a" = "n" ] || [ "$inst_a" = "N" ]; then INSTALL_ANYTLS=false; fi
+    if [ "$inst_a" != "n" ] && [ "$inst_a" != "N" ]; then
+        INSTALL_ANYTLS=true
+        read -p "Введите порт для AnyTLS (или оставьте пустым для случайного): " a_port
+        ANYTLS_PORT="$a_port"
+    else
+        INSTALL_ANYTLS=false
+    fi
 
     read -p "Установить NaiveProxy? (y/n, по умолчанию y): " inst_n
-    if [ "$inst_n" = "n" ] || [ "$inst_n" = "N" ]; then INSTALL_NAIVE=false; fi
+    if [ "$inst_n" != "n" ] && [ "$inst_n" != "N" ]; then
+        INSTALL_NAIVE=true
+        read -p "Введите порт для NaiveProxy (или оставьте пустым для случайного): " n_port
+        NAIVE_PORT="$n_port"
+    else
+        INSTALL_NAIVE=false
+    fi
 
     # 3. WARP configuration
     echo
