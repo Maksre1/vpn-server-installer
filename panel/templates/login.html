@@ -7,15 +7,51 @@
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        .pwd-wrap { position: relative; }
-        .pwd-wrap input { padding-right: 40px; }
-        .pwd-toggle {
-            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-            background: none; border: none; cursor: pointer; color: var(--text-tertiary);
-            padding: 4px; display: flex; align-items: center; justify-content: center;
-            transition: color 0.15s;
+        .pwd-field { position: relative; }
+        .pwd-field input {
+            width: 100%;
+            padding: 12px 44px 12px 16px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 15px;
+            font-family: var(--sans);
+            transition: border-color 0.15s;
+            outline: none;
         }
-        .pwd-toggle:hover { color: var(--text-secondary); }
+        .pwd-field input:focus { border-color: var(--border-hover); }
+        .pwd-eye {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            background: none; border: none; border-radius: 8px;
+            cursor: pointer; color: var(--text-tertiary);
+            transition: background 0.15s, color 0.15s;
+        }
+        .pwd-eye:hover { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+        .pwd-eye svg { width: 18px; height: 18px; pointer-events: none; }
+        .pwd-dots {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            display: flex; align-items: center; padding-left: 16px;
+            pointer-events: none; gap: 6px;
+            font-size: 20px; letter-spacing: 0;
+        }
+        .pwd-dots span {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+            opacity: 0.5;
+            animation: dotPulse 2s ease-in-out infinite;
+        }
+        .pwd-dots span:nth-child(2n) { animation-delay: 0.3s; opacity: 0.35; width: 7px; height: 7px; }
+        .pwd-dots span:nth-child(3n) { animation-delay: 0.6s; opacity: 0.6; width: 9px; height: 9px; }
+        .pwd-dots span:nth-child(4n) { animation-delay: 0.15s; opacity: 0.3; width: 6px; height: 6px; }
+        @keyframes dotPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
     </style>
 </head>
 <body>
@@ -43,22 +79,22 @@
             <form action="{{if .ForceReset}}/reset-password{{else}}/login{{end}}" method="POST">
                 {{if .ForceReset}}
                 <div class="form-group">
-                    <label class="form-label" for="new_password">Новый пароль</label>
-                    <div class="pwd-wrap">
-                        <input class="form-input" type="password" id="new_password" name="new_password" required minlength="8" placeholder="Минимум 8 символов">
-                        <button type="button" class="pwd-toggle" onclick="toggleLoginPwd('new_password', this)">
-                            <svg class="w-4 h-4 eye-open" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            <svg class="w-4 h-4 eye-closed hidden" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
+                    <label class="form-label">Новый пароль</label>
+                    <div class="pwd-field">
+                        <input type="password" id="new_password" name="new_password" required minlength="8" placeholder="Минимум 8 символов" oninput="renderDots('new_password', 'dots-new')">
+                        <div class="pwd-dots" id="dots-new"></div>
+                        <button type="button" class="pwd-eye" onclick="togglePwd('new_password', 'dots-new', this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         </button>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="confirm_password">Подтверждение пароля</label>
-                    <div class="pwd-wrap">
-                        <input class="form-input" type="password" id="confirm_password" name="confirm_password" required minlength="8" placeholder="Повторите пароль">
-                        <button type="button" class="pwd-toggle" onclick="toggleLoginPwd('confirm_password', this)">
-                            <svg class="w-4 h-4 eye-open" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            <svg class="w-4 h-4 eye-closed hidden" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
+                    <label class="form-label">Подтверждение пароля</label>
+                    <div class="pwd-field">
+                        <input type="password" id="confirm_password" name="confirm_password" required minlength="8" placeholder="Повторите пароль" oninput="renderDots('confirm_password', 'dots-confirm')">
+                        <div class="pwd-dots" id="dots-confirm"></div>
+                        <button type="button" class="pwd-eye" onclick="togglePwd('confirm_password', 'dots-confirm', this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         </button>
                     </div>
                 </div>
@@ -70,11 +106,11 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="password">Пароль</label>
-                    <div class="pwd-wrap">
-                        <input class="form-input" type="password" id="password" name="password" required placeholder="Введите пароль">
-                        <button type="button" class="pwd-toggle" onclick="toggleLoginPwd('password', this)">
-                            <svg class="w-4 h-4 eye-open" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            <svg class="w-4 h-4 eye-closed hidden" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
+                    <div class="pwd-field">
+                        <input type="password" id="password" name="password" required placeholder="Введите пароль" oninput="renderDots('password', 'dots-login')">
+                        <div class="pwd-dots" id="dots-login"></div>
+                        <button type="button" class="pwd-eye" onclick="togglePwd('password', 'dots-login', this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         </button>
                     </div>
                 </div>
@@ -84,20 +120,41 @@
         </div>
     </div>
     <script>
-        function toggleLoginPwd(id, btn) {
-            const input = document.getElementById(id);
-            const eyeOpen = btn.querySelector('.eye-open');
-            const eyeClosed = btn.querySelector('.eye-closed');
+        function renderDots(inputId, dotsId) {
+            const input = document.getElementById(inputId);
+            const dots = document.getElementById(dotsId);
+            const len = input.value.length;
+            let html = '';
+            for (let i = 0; i < len; i++) {
+                html += '<span></span>';
+            }
+            dots.innerHTML = html;
+        }
+
+        function togglePwd(inputId, dotsId, btn) {
+            const input = document.getElementById(inputId);
+            const dots = document.getElementById(dotsId);
             if (input.type === 'password') {
                 input.type = 'text';
-                eyeOpen.classList.add('hidden');
-                eyeClosed.classList.remove('hidden');
+                dots.style.display = 'none';
+                input.style.color = 'var(--text)';
             } else {
                 input.type = 'password';
-                eyeOpen.classList.remove('hidden');
-                eyeClosed.classList.add('hidden');
+                dots.style.display = 'flex';
+                input.style.color = 'transparent';
+                renderDots(inputId, dotsId);
             }
         }
+
+        // Init dots on load
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.pwd-field input[type="password"]').forEach(function(input) {
+                if (input.value.length > 0) {
+                    const dotsId = input.getAttribute('oninput').match(/'([^']+)'/)[2];
+                    renderDots(input.id, dotsId);
+                }
+            });
+        });
     </script>
 </body>
 </html>

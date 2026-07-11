@@ -674,6 +674,27 @@ input:checked + .slider:before {
     text-align: center;
 }
 
+/* Password field with eye toggle */
+.pwd-field { position: relative; }
+.pwd-field input { padding-right: 40px !important; }
+.pwd-eye {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: var(--text-tertiary);
+    transition: color 0.15s;
+    background: none;
+    border: none;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.pwd-eye:hover { color: var(--text-secondary); }
+.pwd-eye svg { width: 18px; height: 18px; pointer-events: none; }
+
 /* Mobile */
 .mobile-nav-toggle {
     display: none;
