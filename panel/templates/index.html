@@ -264,7 +264,7 @@
                             </div>
                             
                             <div class="flex flex-wrap items-center justify-center gap-4">
-                                <button type="button" class="bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.06)] border border-[var(--border)] hover:border-[var(--border-hover)] text-[var(--text)] px-5 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer" onclick="toggleSimpleSettingsVisibility()">
+                                <button type="button" class="btn px-5 py-2.5 text-xs" onclick="toggleSimpleSettingsVisibility()">
                                     ⚙️ Настройки маршрутизации
                                 </button>
                                 <button type="button" class="text-[var(--text-secondary)] hover:text-[var(--text)] text-xs font-semibold transition-colors duration-200 cursor-pointer" onclick="openAdvancedWarningModal()">
@@ -355,7 +355,7 @@
 
                             <!-- 4. Save Button -->
                             <div class="flex justify-end pt-6 border-t border-[var(--border)]">
-                                <button type="submit" class="btn btn-primary !w-auto px-8" style="margin-top: 0;">Применить настройки</button>
+                                <button type="submit" class="btn px-6">Применить настройки</button>
                             </div>
                         </div>
                     </div>
@@ -400,7 +400,7 @@
                                             {{end}}
                                         </select>
                                         <span class="input-tip">Все обращения, для которых не заданы персональные правила обхода/каскада, пойдут по этому пути.</span>
-                                        <button type="button" class="bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.09)] text-[var(--text)] border border-[var(--border-hover)] font-semibold px-4 py-2.5 rounded-lg text-xs transition-all w-full mt-5 flex items-center justify-center gap-2 cursor-pointer" onclick="openDomainRoutesModal()">
+                                        <button type="button" class="btn w-full mt-5" onclick="openDomainRoutesModal()">
                                             <span>⚙️</span> Настроить маршруты доменов
                                         </button>
                                         
@@ -551,7 +551,7 @@
                             </div>
 
                             <div class="flex justify-end mt-8 pt-4 border-t border-[var(--border)]">
-                                <button type="submit" class="btn btn-primary !w-auto px-8" style="margin-top: 0;">Применить настройки</button>
+                                <button type="submit" class="btn px-6">Применить настройки</button>
                             </div>
                         </div>
                     </div>
@@ -559,63 +559,68 @@
                 
                 <!-- Tab 4: DNS & Bypass Routing -->
                 <section id="tab-dns-routing" class="tab-section">
-                    <div class="card tab-card">
+                    <!-- Direct Domains Section -->
+                    <div class="tab-card mb-6">
                         <div class="card-info-header">
-                            <h3>Обход VPN & Настройки DNS</h3>
-                            <p>Настройте прямые домены (в обход VPN-соединения на устройствах) и выберите доверенные DNS сервера.</p>
-                        </div>
-                        
-                        <!-- 1. Direct Domains Textarea -->
-                        <div class="settings-group" style="border-bottom: 1px solid var(--card-border); padding-bottom: 24px;">
-                            <label class="form-label-premium">Сайты-исключения (напрямую через домашнего провайдера)</label>
-                            <textarea id="dns-direct-domains-textarea" class="premium-input font-mono w-full resize-none py-1.5" rows="6" placeholder="yandex.ru&#10;sberbank.ru"></textarea>
-                            <span class="input-tip">По одному домену на строку. Клиентское приложение (Clash/Sing-Box) направит трафик на эти сайты напрямую в обход VPN.</span>
+                            <h3>Сайты-исключения</h3>
+                            <p>Домены, которые будут открываться напрямую через вашего провайдера в обход VPN.</p>
                         </div>
 
-                        <!-- 2. Direct Rules URL lists -->
-                        <div class="settings-group" style="border-bottom: 1px solid var(--card-border); padding-bottom: 24px; padding-top: 10px;">
-                            <label class="form-label-premium">Списки сайтов по ссылкам (в обход VPN)</label>
+                        <div class="settings-group">
+                            <label class="form-label-premium">Домены (по одному на строку)</label>
+                            <textarea id="dns-direct-domains-textarea" class="premium-input font-mono w-full resize-none" rows="4" placeholder="yandex.ru&#10;sberbank.ru" style="min-height: 80px;"></textarea>
+                            <span class="input-tip">Клиентское приложение (Clash/Sing-Box) направит трафик на эти сайты напрямую.</span>
+                        </div>
+
+                        <div class="settings-group">
+                            <label class="form-label-premium">Списки по ссылкам</label>
                             <div class="flex gap-2">
                                 <input type="text" id="dns-direct-list-url-input" class="premium-input flex-1 py-1.5" placeholder="https://example.com/direct-rules.txt">
                                 <button type="button" class="btn text-xs px-3 py-1.5" onclick="addDnsDirectListURL()">+</button>
                             </div>
-                            <span class="input-tip">Вставьте ссылку на файл со списком доменов. Клиентские приложения будут открывать домены из этих списков напрямую через вашего провайдера.</span>
-                            
-                            <!-- Container for added list blocks -->
+                            <span class="input-tip">Ссылка на файл со списком доменов. Обновляется автоматически.</span>
                             <div id="dns-direct-lists-container" class="flex flex-col gap-2 mt-3"></div>
-                            
-                            <!-- Hidden input to submit the actual comma-separated values to the form -->
                             <input type="hidden" name="direct_rules_url" id="adv_direct_rules_url" value="{{.DirectRulesURL}}">
                         </div>
-                        
-                        <div class="settings-group" style="border-bottom: 1px solid var(--card-border); padding-bottom: 24px; padding-top: 10px;">
-                            <label class="form-label-premium">DNS для VPN-трафика (Proxy DNS)</label>
-                            <select class="select-input" name="dns_proxy" onchange="toggleCustomDNS('proxy', this)">
-                                <option value="cloudflare" {{if eq .DNSProxy "cloudflare"}}selected{{end}}>Cloudflare (1.1.1.1)</option>
-                                <option value="google" {{if eq .DNSProxy "google"}}selected{{end}}>Google (8.8.8.8)</option>
-                                <option value="adguard" {{if eq .DNSProxy "adguard"}}selected{{end}}>AdGuard DNS (Блокировка рекламы)</option>
-                                <option value="custom" {{if eq .DNSProxy "custom"}}selected{{end}}>Свой DNS сервер</option>
-                            </select>
-                            <div id="custom-dns-proxy-group" style="display: {{if eq .DNSProxy "custom"}}block{{else}}none{{end}}; margin-top: 12px;">
-                                <input type="text" class="premium-input" name="custom_dns_proxy" value="{{.CustomDNSProxy}}" placeholder="https://dns.example.com/dns-query или IP">
+                    </div>
+
+                    <!-- DNS Section -->
+                    <div class="tab-card">
+                        <div class="card-info-header">
+                            <h3>DNS-серверы</h3>
+                            <p>Выберите DNS для VPN-трафика и для прямых соединений.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div class="settings-group">
+                                <label class="form-label-premium">Proxy DNS (через VPN)</label>
+                                <select class="select-input w-full" name="dns_proxy" onchange="toggleCustomDNS('proxy', this)">
+                                    <option value="cloudflare" {{if eq .DNSProxy "cloudflare"}}selected{{end}}>Cloudflare (1.1.1.1)</option>
+                                    <option value="google" {{if eq .DNSProxy "google"}}selected{{end}}>Google (8.8.8.8)</option>
+                                    <option value="adguard" {{if eq .DNSProxy "adguard"}}selected{{end}}>AdGuard DNS</option>
+                                    <option value="custom" {{if eq .DNSProxy "custom"}}selected{{end}}>Свой DNS</option>
+                                </select>
+                                <div id="custom-dns-proxy-group" style="display: {{if eq .DNSProxy "custom"}}block{{else}}none{{end}}; margin-top: 8px;">
+                                    <input type="text" class="premium-input" name="custom_dns_proxy" value="{{.CustomDNSProxy}}" placeholder="IP или DoH-ссылка">
+                                </div>
+                            </div>
+
+                            <div class="settings-group">
+                                <label class="form-label-premium">Direct DNS (напрямую)</label>
+                                <select class="select-input w-full" name="dns_direct" onchange="toggleCustomDNS('direct', this)">
+                                    <option value="cloudflare" {{if eq .DNSDirect "cloudflare"}}selected{{end}}>Cloudflare (1.1.1.1)</option>
+                                    <option value="google" {{if eq .DNSDirect "google"}}selected{{end}}>Google (8.8.8.8)</option>
+                                    <option value="adguard" {{if eq .DNSDirect "adguard"}}selected{{end}}>AdGuard DNS</option>
+                                    <option value="custom" {{if eq .DNSDirect "custom"}}selected{{end}}>Свой DNS</option>
+                                </select>
+                                <div id="custom-dns-direct-group" style="display: {{if eq .DNSDirect "custom"}}block{{else}}none{{end}}; margin-top: 8px;">
+                                    <input type="text" class="premium-input" name="custom_dns_direct" value="{{.CustomDNSDirect}}" placeholder="IP или DoH-ссылка">
+                                </div>
                             </div>
                         </div>
-                        
-                        <div class="settings-group" style="padding-top: 10px;">
-                            <label class="form-label-premium">DNS для прямого трафика (Direct DNS)</label>
-                            <select class="select-input" name="dns_direct" onchange="toggleCustomDNS('direct', this)">
-                                <option value="cloudflare" {{if eq .DNSDirect "cloudflare"}}selected{{end}}>Cloudflare (1.1.1.1)</option>
-                                <option value="google" {{if eq .DNSDirect "google"}}selected{{end}}>Google (8.8.8.8)</option>
-                                <option value="adguard" {{if eq .DNSDirect "adguard"}}selected{{end}}>AdGuard DNS</option>
-                                <option value="custom" {{if eq .DNSDirect "custom"}}selected{{end}}>Свой DNS сервер</option>
-                            </select>
-                            <div id="custom-dns-direct-group" style="display: {{if eq .DNSDirect "custom"}}block{{else}}none{{end}}; margin-top: 12px;">
-                                <input type="text" class="premium-input" name="custom_dns_direct" value="{{.CustomDNSDirect}}" placeholder="8.8.4.4 или DoH-ссылка">
-                            </div>
-                        </div>
-                        
-                        <div class="settings-actions">
-                            <button type="submit" class="btn btn-primary">Применить настройки</button>
+
+                        <div class="settings-actions" style="border-top: 1px solid var(--border); margin-top: 16px; padding-top: 16px;">
+                            <button type="submit" class="btn">Применить настройки</button>
                         </div>
                     </div>
                 </section>
@@ -646,8 +651,8 @@
                                     <input class="premium-input" type="password" name="new_password" placeholder="Оставьте пустым, чтобы не менять">
                                 </div>
                                 
-                                <div class="settings-actions" style="border-top: 1px solid var(--card-border); margin-top: 24px; padding-top: 20px;">
-                                    <button type="submit" class="btn btn-primary w-full sm:w-auto">Сохранить учетные данные</button>
+                                <div class="settings-actions" style="border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px;">
+                                    <button type="submit" class="btn">Сохранить учетные данные</button>
                                 </div>
                             </form>
                         </div>
@@ -684,8 +689,8 @@
                                     </div>
                                 </div>
                                 
-                                <div class="settings-actions" style="border-top: 1px solid var(--card-border); margin-top: 24px; padding-top: 20px;">
-                                    <button type="submit" class="btn btn-primary w-full sm:w-auto">Сохранить параметры SSL</button>
+                                <div class="settings-actions" style="border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px;">
+                                    <button type="submit" class="btn">Сохранить параметры SSL</button>
                                 </div>
                             </form>
                         </div>
@@ -709,8 +714,8 @@
                                     <span class="input-tip mt-2 block">Активация мгновенно применит ключ на сервере. Оставьте поле пустым для бесплатного тарифа.</span>
                                 </div>
                                 
-                                <div class="settings-actions" style="border-top: 1px solid var(--card-border); margin-top: 24px; padding-top: 20px;">
-                                    <button type="submit" class="btn btn-primary w-full sm:w-auto">Сохранить ключ</button>
+                                <div class="settings-actions" style="border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px;">
+                                    <button type="submit" class="btn">Сохранить ключ</button>
                                 </div>
                             </form>
                         </div>
