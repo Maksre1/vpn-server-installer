@@ -1539,7 +1539,7 @@ func buildClashSubscription() ([]byte, error) {
 
 	anytlsSNI := cfg.AnyTLSSNI
 	if anytlsSNI == "" {
-		anytlsSNI = "images.apple.com"
+		anytlsSNI = cfg.Domain
 	}
 
 	clash.Proxies = append(clash.Proxies, map[string]interface{}{
@@ -1617,7 +1617,7 @@ func buildSingboxSubscription() ([]byte, error) {
 
 	anytlsSNI := cfg.AnyTLSSNI
 	if anytlsSNI == "" {
-		anytlsSNI = "images.apple.com"
+		anytlsSNI = cfg.Domain
 	}
 
 	naiveSNI := cfg.NaiveSNI
