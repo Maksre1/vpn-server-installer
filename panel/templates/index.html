@@ -541,14 +541,27 @@
                             <p>Настройте прямые домены (в обход VPN-соединения на устройствах) и выберите доверенные DNS сервера.</p>
                         </div>
                         
+                        <!-- 1. Direct Domains Textarea -->
                         <div class="settings-group" style="border-bottom: 1px solid var(--card-border); padding-bottom: 24px;">
-                            <label class="form-label-premium">Правила обхода (Прямые домены из GitHub, через запятую)</label>
-                            <input type="text" class="premium-input" name="direct_rules_url" id="adv_direct_rules_url" value="{{.DirectRulesURL}}" placeholder="https://raw.githubusercontent.com/Maksre1/clash-rules/main/outside-clashx.yaml, ...">
-                            <span class="input-tip">По умолчанию: список outside-clashx.yaml (обновление каждые 6 часов). Можно указать несколько ссылок через запятую.</span>
+                            <label class="form-label-premium">Сайты-исключения (напрямую, без VPN)</label>
+                            <textarea id="dns-direct-domains-textarea" class="premium-input font-mono w-full resize-none py-1.5" rows="6" placeholder="yandex.ru&#10;sberbank.ru" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7; height: 128px; min-height: 128px;"></textarea>
+                            <span class="input-tip">Введите домены (по одному на строку), которые должны открываться напрямую, в обход VPN.</span>
+                        </div>
+
+                        <!-- 2. Direct Rules URL lists -->
+                        <div class="settings-group" style="border-bottom: 1px solid var(--card-border); padding-bottom: 24px; padding-top: 10px;">
+                            <label class="form-label-premium">Списки сайтов по ссылкам (в обход VPN)</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="dns-direct-list-url-input" class="premium-input flex-1 py-1.5" placeholder="https://example.com/direct-rules.txt" style="background-color: #09090b; border-color: #27272a; color: #e4e4e7;">
+                                <button type="button" class="bg-emerald-600 hover:bg-emerald-500 text-zinc-100 font-bold px-4 py-1.5 rounded-lg text-sm transition-colors cursor-pointer flex items-center justify-center" onclick="addDnsDirectListURL()">+</button>
+                            </div>
+                            <span class="input-tip">Вставьте ссылку на файл со списком доменов-исключений. Обновляется автоматически каждые 6 часов.</span>
                             
-                            <button type="button" class="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-semibold px-4 py-2.5 rounded-lg text-xs transition-all w-full mt-5 flex items-center justify-center gap-2 cursor-pointer" onclick="openDomainRoutesModal()">
-                                <span>⚙️</span> Настроить маршруты доменов
-                            </button>
+                            <!-- Container for added list blocks -->
+                            <div id="dns-direct-lists-container" class="flex flex-col gap-2 mt-3"></div>
+                            
+                            <!-- Hidden input to submit the actual comma-separated values to the form -->
+                            <input type="hidden" name="direct_rules_url" id="adv_direct_rules_url" value="{{.DirectRulesURL}}">
                         </div>
                         
                         <div class="settings-group" style="border-bottom: 1px solid var(--card-border); padding-bottom: 24px; padding-top: 10px;">
@@ -1636,6 +1649,74 @@
             document.getElementById('adv_naive_cascade').value = document.getElementById('naive_cascade_hidden').value;
         }
 
+        let dnsDirectRulesURLs = [];
+
+        function initDnsRoutingTab() {
+            const directListVal = document.getElementById('direct_list_hidden').value || '';
+            document.getElementById('dns-direct-domains-textarea').value = directListVal;
+
+            const directRulesVal = document.getElementById('adv_direct_rules_url').value || '';
+            dnsDirectRulesURLs = directRulesVal.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            renderDnsDirectListURLs();
+        }
+
+        function renderDnsDirectListURLs() {
+            const container = document.getElementById('dns-direct-lists-container');
+            if (!container) return;
+            container.innerHTML = '';
+            if (dnsDirectRulesURLs.length === 0) {
+                container.innerHTML = `<span class="text-xs text-zinc-600">Списков пока нет</span>`;
+                return;
+            }
+            dnsDirectRulesURLs.forEach((url, index) => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between py-2 px-3 border border-zinc-800 bg-zinc-950/40 rounded-lg text-xs gap-3";
+                item.innerHTML = `
+                    <span class="font-mono text-zinc-300 truncate max-w-[420px]" title="${url}">${url}</span>
+                    <button type="button" class="text-rose-500 hover:text-rose-400 transition-colors p-1 cursor-pointer font-bold" onclick="deleteDnsDirectListURL(${index})">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function addDnsDirectListURL() {
+            const input = document.getElementById('dns-direct-list-url-input');
+            if (!input) return;
+            const urlStr = input.value.trim();
+            if (!urlStr) return;
+            
+            try {
+                new URL(urlStr);
+            } catch (e) {
+                alert('Пожалуйста, введите корректный URL адрес (например: https://example.com/direct-rules.txt)');
+                return;
+            }
+            
+            if (dnsDirectRulesURLs.includes(urlStr)) {
+                alert('Этот список уже добавлен!');
+                return;
+            }
+            
+            dnsDirectRulesURLs.push(urlStr);
+            input.value = '';
+            renderDnsDirectListURLs();
+            updateDnsDirectHiddenInput();
+        }
+
+        function deleteDnsDirectListURL(index) {
+            dnsDirectRulesURLs.splice(index, 1);
+            renderDnsDirectListURLs();
+            updateDnsDirectHiddenInput();
+        }
+
+        function updateDnsDirectHiddenInput() {
+            document.getElementById('adv_direct_rules_url').value = dnsDirectRulesURLs.join(',');
+        }
+
         function toggleSimpleSettingsVisibility() {
             const controls = document.getElementById('simple-settings-controls');
             if (controls.classList.contains('hidden')) {
@@ -1655,6 +1736,25 @@
                 document.getElementById('mieru_cascade_hidden').value = document.getElementById('adv_mieru_cascade').value;
                 document.getElementById('anytls_cascade_hidden').value = document.getElementById('adv_anytls_cascade').value;
                 document.getElementById('naive_cascade_hidden').value = document.getElementById('adv_naive_cascade').value;
+                
+                // Sync direct domains textarea on DNS tab
+                const dnsDirectText = document.getElementById('dns-direct-domains-textarea').value || '';
+                const directDomains = dnsDirectText.split(/[\s,\n]+/).map(d => d.trim()).filter(d => d !== '');
+                document.getElementById('direct_list_hidden').value = directDomains.join('\n');
+                
+                // Sync into domain_routes
+                const routesVal = document.getElementById('domain_routes').value || '';
+                let newRoutes = [];
+                routesVal.split('\n').forEach(line => {
+                    const parts = line.split(':');
+                    if (parts.length === 2 && parts[1].trim() !== 'direct') {
+                        newRoutes.push(line.trim());
+                    }
+                });
+                directDomains.forEach(d => {
+                    newRoutes.push(`${d}:direct`);
+                });
+                document.getElementById('domain_routes').value = newRoutes.join('\n');
             } else {
                 const simpleMode = document.getElementById('simple_mode_select').value;
                 const textareaVal = document.getElementById('simple-domains-textarea').value || '';
@@ -1666,12 +1766,14 @@
                     document.getElementById('domain_routes').value = routes;
                     document.getElementById('warp_list_hidden').value = '';
                     document.getElementById('direct_list_hidden').value = domains.join('\n');
+                    document.getElementById('dns-direct-domains-textarea').value = domains.join('\n');
                 } else {
                     document.getElementById('warp_mode').value = 'direct';
                     const routes = domains.map(d => `${d}:warp`).join('\n');
                     document.getElementById('domain_routes').value = routes;
                     document.getElementById('warp_list_hidden').value = domains.join('\n');
                     document.getElementById('direct_list_hidden').value = '';
+                    document.getElementById('dns-direct-domains-textarea').value = '';
                 }
                 
                 document.getElementById('hysteria_cascade_hidden').value = document.getElementById('simple_hysteria_cascade').value;
@@ -1882,6 +1984,7 @@
             updateMetrics();
             setInterval(updateMetrics, 3000);
             applyRoutingModeUI();
+            initDnsRoutingTab();
 
             // Intercept form submit to sync simplified views to hidden fields
             document.getElementById('settings-form').addEventListener('submit', (e) => {
