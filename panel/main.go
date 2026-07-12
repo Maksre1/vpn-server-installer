@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/rand"
-	"embed"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -112,6 +111,20 @@ type loginTracker struct {
 	Blocked  time.Time
 }
 
+// fetchBody fetches a URL and returns the response body bytes.
+// The response body is properly closed after reading.
+func fetchBody(client *http.Client, url string) ([]byte, error) {
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d from %s", resp.StatusCode, url)
+	}
+	return io.ReadAll(resp.Body)
+}
+
 // System stats
 type ServiceInfo struct {
 	Active  bool   `json:"active"`
@@ -218,6 +231,20 @@ func main() {
 		})
 		log.Printf("HTTP Subscription server listening on :%d\n", cfg.Port+1)
 		http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port+1), mux)
+	}()
+
+	// Periodic cleanup of rate limiter entries (every 15 minutes)
+	go func() {
+		for {
+			time.Sleep(15 * time.Minute)
+			rateLimitMu.Lock()
+			for ip, tracker := range rateLimit {
+				if time.Since(tracker.Blocked) > 15*time.Minute {
+					delete(rateLimit, ip)
+				}
+			}
+			rateLimitMu.Unlock()
+		}
 	}()
 
 	log.Printf("Server listening on :%d\n", cfg.Port)
@@ -408,20 +435,15 @@ func updateDirectRules() {
 			continue
 		}
 		log.Println("Fetching direct rules from URL:", urlStr)
-		resp, err := client.Get(urlStr)
-		if err == nil {
-			defer resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				if bodyBytes, readErr := io.ReadAll(resp.Body); readErr == nil {
-					domains := parseClashRules(bodyBytes)
-					if len(domains) > 0 {
-						mergedDomains = append(mergedDomains, domains...)
-						downloadedAny = true
-					}
-				}
-			}
-		} else {
+		bodyBytes, err := fetchBody(client, urlStr)
+		if err != nil {
 			log.Println("Failed to fetch direct rules from URL:", urlStr, err)
+			continue
+		}
+		domains := parseClashRules(bodyBytes)
+		if len(domains) > 0 {
+			mergedDomains = append(mergedDomains, domains...)
+			downloadedAny = true
 		}
 	}
 
@@ -549,21 +571,18 @@ func saveConfig() {
 		return
 	}
 
-	err = os.WriteFile(configPath, data, 0600)
-	if err != nil {
-		log.Println("Error writing config:", err)
+	tmpPath := configPath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
+		log.Println("Error writing config temp file:", err)
+		return
+	}
+	if err := os.Rename(tmpPath, configPath); err != nil {
+		log.Println("Error renaming config file:", err)
+		os.Remove(tmpPath)
 	}
 }
 
-// Embed HTML/CSS templates
-//go:embed templates/* static/*
-var assetsFS embed.FS
-
-// Custom embed helper if we compile locally
-// Since we are running the server compiled, we can write the files directly, or read them from /etc/vpn-panel.
-// But to make it 100% self-contained, we will read the templates from the files on disk that we created in the repository!
-// This is perfect because we install the panel files inside /opt/vpn-panel/templates/ and static/.
-// So our Go code will load templates from the disk in /opt/vpn-panel/templates/ to make design edits easy and instant.
+// Templates are loaded from disk at /opt/vpn-panel/templates/
 
 func loadTemplate(name string) (*template.Template, error) {
 	path := filepath.Join("/opt/vpn-panel/templates", name)
@@ -1998,21 +2017,17 @@ func generateSingboxServerConfig() error {
 				continue
 			}
 			log.Println("Downloading WARP domains list from URL:", urlStr)
-			if resp, err := client.Get(urlStr); err == nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == http.StatusOK {
-					if body, err := io.ReadAll(resp.Body); err == nil {
-						downloadedLines := strings.Split(string(body), "\n")
-						for _, line := range downloadedLines {
-							line = strings.TrimSpace(line)
-							if line != "" && !strings.HasPrefix(line, "#") {
-								warpDomains = append(warpDomains, line)
-							}
-						}
-					}
-				}
-			} else {
+			body, err := fetchBody(client, urlStr)
+			if err != nil {
 				log.Println("Failed to download WARP domains from URL:", urlStr, err)
+				continue
+			}
+			downloadedLines := strings.Split(string(body), "\n")
+			for _, line := range downloadedLines {
+				line = strings.TrimSpace(line)
+				if line != "" && !strings.HasPrefix(line, "#") {
+					warpDomains = append(warpDomains, line)
+				}
 			}
 		}
 	}
@@ -2520,20 +2535,27 @@ func handleSaveProtocolSettings(w http.ResponseWriter, r *http.Request) {
 		cfg.AnyTLSPassword = req.Password
 		cfg.AnyTLSSNI = req.SNI
 
-		serviceContent := fmt.Sprintf(`[Unit]
+		// Write password to environment file (not visible in ps aux)
+		envContent := fmt.Sprintf("ANYTLS_PASSWORD=%s\n", req.Password)
+		if err := os.WriteFile("/etc/anytls.env", []byte(envContent), 0600); err != nil {
+			log.Println("Error writing AnyTLS env file:", err)
+		}
+
+		serviceContent := `[Unit]
 Description=AnyTLS Proxy Server
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/anytls-server -l 0.0.0.0:%d -p %s
+EnvironmentFile=/etc/anytls.env
+ExecStart=/usr/local/bin/anytls-server -l 0.0.0.0:` + fmt.Sprintf("%d", req.Port) + ` -p $ANYTLS_PASSWORD
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
 
 [Install]
 WantedBy=multi-user.target
-`, req.Port, req.Password)
+`
 		if err := os.WriteFile("/etc/systemd/system/anytls-server.service", []byte(serviceContent), 0644); err == nil {
 			exec.Command("systemctl", "daemon-reload").Run()
 		} else {

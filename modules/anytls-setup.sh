@@ -47,7 +47,13 @@ fi
 
 log_info "Настройка AnyTLS на порту $PORT (TCP)..."
 
-# 4. Create Systemd Service
+# 4. Create Environment File
+cat <<EOF > /etc/anytls.env
+ANYTLS_PASSWORD=$PASSWORD
+EOF
+chmod 600 /etc/anytls.env
+
+# 5. Create Systemd Service
 cat <<EOF > /etc/systemd/system/anytls-server.service
 [Unit]
 Description=AnyTLS Proxy Server
@@ -55,7 +61,8 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$BINARY_PATH -l 0.0.0.0:$PORT -p $PASSWORD
+EnvironmentFile=/etc/anytls.env
+ExecStart=$BINARY_PATH -l 0.0.0.0:\$PORT -p \$ANYTLS_PASSWORD
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
